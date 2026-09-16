@@ -1,7 +1,10 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union, Optional
 import bcrypt
-from jose import jwt
+try:
+    import jwt
+except ImportError:
+    from jose import jwt
 from app.core.config import settings
 
 def hash_password(password: str) -> str:

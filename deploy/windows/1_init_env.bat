@@ -24,7 +24,7 @@ if not exist "%~dp0..\..\backend\requirements.txt" (
         echo uvicorn^>=0.23.0
         echo pydantic^>=2.0.0
         echo pydantic-settings^>=2.0.0
-        echo python-jose[cryptography]^>=3.3.0
+        echo pyjwt^>=2.8.0
         echo bcrypt^>=4.0.0
         echo python-multipart^>=0.0.6
         echo aiofiles^>=23.0.0
