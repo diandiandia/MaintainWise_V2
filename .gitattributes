@@ -1,0 +1,10 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Windows batch files must strictly use CRLF line terminators
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Linux shell scripts must strictly use LF line terminators
+*.sh text eol=lf
