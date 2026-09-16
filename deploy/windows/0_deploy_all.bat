@@ -15,7 +15,7 @@ echo -----------------------------------------------------------------------
 echo Select Startup Mode / 请选择启动方式：
 echo   [1] Start Interactive Foreground Test (Recommended for first run)
 echo       立即前台交互测试启动 (端口 8000)
-echo   [2] Install & Start Background Service (Production, Admin required)
+echo   [2] Install and Start Background Service (Production, Admin required)
 echo       安装并启动为 Windows 后台自启服务
 echo   [3] Exit now (Environment is ready)
 echo       仅完成环境初始化，稍后自行启动

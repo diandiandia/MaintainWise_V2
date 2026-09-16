@@ -43,7 +43,7 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo [3/3] Initializing SQLite 3 WAL database & seed data...
+echo [3/3] Initializing SQLite 3 WAL database and seed data...
 cd /d "%~dp0..\..\backend"
 python -c "from app.db.init_db import init_db; init_db(); print('[OK] Database and demo data initialized successfully!')"
 
