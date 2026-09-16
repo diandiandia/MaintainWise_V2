@@ -37,9 +37,9 @@ MaintainWise_V2/
 │   │   │   ├── endpoints/
 │   │   │   │   ├── auth.py          # 登录认证与 Token 颁发
 │   │   │   │   ├── users.py         # 用户增删改查与密码重置
-│   │   │   │   ├── equipments.py    # 设备台账、三级架构自主创建、工时抄表
+│   │   │   │   ├── equipments.py    # 设备台账、四级树与单设备删除、工时抄表
 │   │   │   │   ├── maintenance.py   # 维保计划、技术员打卡与锁定、工程师修正
-│   │   │   │   ├── work_orders.py   # 30秒极速报修、四态看板流转、复盘结案
+│   │   │   │   ├── work_orders.py   # 30秒极速报修、四态看板流转、拍照/图库上传、复盘结案
 │   │   │   │   ├── knowledge.py     # 知识库案例检索、录入与智能推荐
 │   │   │   │   ├── system.py        # 大盘统计、定制参数与一键热备份
 │   │   │   │   └── docs.py          # 系统设计规范在线读取服务
@@ -65,13 +65,13 @@ MaintainWise_V2/
 │   │   │   └── backup_service.py    # SQLite WAL 纯内存 ZIP 热备份服务
 │   │   └── main.py                  # FastAPI 单端口总宿主与 SPA 挂载
 │   ├── tests/                       # 自动化测试用例套件
-│   │   └── test_backend_api.py      # 端到端 API 集成自动化测试 (13项 Pytest 用例)
+│   │   └── test_backend_api.py      # 端到端 API 集成自动化测试 (15项 Pytest 用例)
 │   └── requirements.txt             # 生产端纯 Wheel 依赖清单
 │
 ├── frontend/                        # 前端 Vue 3 + TypeScript 源码
 │   ├── src/
 │   │   ├── api/                     # Axios 封装接口客户端
-│   │   ├── components/              # 业务复用高阶组件 (病历抽屉等)
+│   │   ├── components/              # 业务复用高阶组件 (PhotoUploader 照片上传、EquipmentTimelineDrawer 病历抽屉)
 │   │   ├── layout/                  # 系统主布局框架
 │   │   ├── router/                  # Vue Router 路由守卫与动态菜单
 │   │   ├── stores/                  # Pinia 响应式状态管理 (user, app)

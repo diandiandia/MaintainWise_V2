@@ -174,6 +174,23 @@
   - 层级更名与级联删除时单事务原子同步更新 `custom_hierarchies`，新增设备自动反向登记入表。
 * **测试用例**：`test_custom_hierarchy_creation_and_options()`
 
+### SWR-DEV-009：单台设备软删除与四级树展示契约接口
+* **上游追溯**：`SDR-DEV-014`, `CR-DEV-014`
+* **实现定位**：`backend/app/api/v1/endpoints/equipments.py` (`DELETE /api/v1/equipments/{id}`, `GET /api/v1/equipments/hierarchy-tree`), `frontend/src/views/equipments/EquipmentListView.vue`
+* **权限守卫**：`Depends(get_current_user)` 全员认证开放
+* **接口契约**：
+  - `DELETE /api/v1/equipments/{id}`:
+    - 校验存在性：不存在或已删除返回 `HTTP 404 Not Found: "未找到该设备或已被删除"`；
+    - 执行软删除：`UPDATE equipments SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?`；
+    - 响应：`{"message": "设备 [xxx] 已成功移除"}`；
+  - `GET /api/v1/equipments/hierarchy-tree`:
+    - 在系统节点下挂载 `children: [...]` 承载 Level 4 设备子节点；
+    - 设备节点包含 `node_key`, `id`, `label` (`📦 {equipment_name}`), `name`, `equipment_code`, `status`, `level: 'equipment'`；
+* **业务保证**：
+  - 当所属系统设备数为 0 时，保留 `custom_hierarchies` 架构记录，计数显示为 `(0)`；
+  - 关联工单与病历通过不可变设备 `id` 与名称快照完整保留。
+* **测试用例**：`test_equipment_delete_and_hierarchy_tree_children()`
+
 ---
 
 ## 第四部分：维护单与保养计划软件需求 (SWR-MNT)
@@ -253,6 +270,23 @@
   - `PUT /work-orders/{id}` 允许在 `PENDING` 或 `IN_PROGRESS` 时更新工单简述与现象；
   - `PUT /work-orders/{id}/calibrate-typical`（ENGINEER）将已结案工单 `is_featured_case` 置为 1 并推送知识库。
 * **测试用例**：`test_work_order_edit_and_calibration()`
+
+### SWR-WO-006：完工修复照片单张/批量上传契约接口与组件交互
+* **上游追溯**：`SDR-WO-007`, `CR-WO-007`
+* **实现定位**：`backend/app/api/v1/endpoints/work_orders.py` (`POST /upload-photo`, `POST /upload-photos`), `frontend/src/components/PhotoUploader.vue`
+* **权限守卫**：`Depends(get_current_user)` 全员认证开放
+* **输入契约**：
+  - `POST /api/v1/work-orders/upload-photo`: `file: UploadFile` (multipart/form-data)
+  - `POST /api/v1/work-orders/upload-photos`: `files: List[UploadFile]` (multipart/form-data)
+* **输出契约**：
+  - 单张：`{"url": str, "file_name": str, "size": int, "message": "照片上传成功"}`
+  - 批量：`{"urls": List[str], "count": int, "message": "成功上传 N 张照片"}`
+* **逻辑与异常**：
+  - 校验文件后缀必须属于 `{'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.heic', '.gif'}`，缺省自动置为 `.jpg`；
+  - 单文件限制 15MB，超限抛出 `HTTP 413: "上传照片大小不能超过 15MB"`；
+  - 存入 `data/uploads/repairs/` 并生成唯一随机文件名，向外暴露静态访问相对路径；
+  - 前端 `PhotoUploader.vue` 统一封装拍照（`capture="environment"`）与本地图库多选，双向绑定逗号拼接字符串，与 `resolveForm`、`editForm` 及 `selectedWo` 缩放预览完全打通。
+* **测试用例**：`test_work_order_photo_upload_and_resolve()`
 
 ---
 
@@ -362,6 +396,7 @@
 | **CR-DEV-011** | `SDR-DEV-011` | **SWR-DEV-006** | `backend/app/api/v1/endpoints/equipments.py` | `test_intermittent_equipment_and_countdown_lifecycle` |
 | **CR-DEV-012** | `SDR-DEV-012` | **SWR-DEV-007** | `backend/app/api/v1/endpoints/equipments.py` | `test_hierarchy_delete_and_historical_integrity` |
 | **CR-DEV-013** | `SDR-DEV-013` | **SWR-DEV-008** | `backend/app/api/v1/endpoints/equipments.py`, `frontend/src/views/equipments/EquipmentListView.vue` | `test_equipments_and_hierarchy_management` |
+| **CR-DEV-014** | `SDR-DEV-014` | **SWR-DEV-009** | `backend/app/api/v1/endpoints/equipments.py`, `frontend/src/views/equipments/EquipmentListView.vue` | `test_equipment_delete_and_hierarchy_tree_children` |
 | **CR-MNT-001** | `SDR-MNT-001` | **SWR-MNT-001** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
 | **CR-MNT-003** | `SDR-MNT-003` | **SWR-MNT-001** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
 | **CR-MNT-004** | `SDR-MNT-004` | **SWR-MNT-002** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
@@ -372,6 +407,7 @@
 | **CR-WO-004** | `SDR-WO-004` | **SWR-WO-003** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-WO-005** | `SDR-WO-005` | **SWR-WO-004** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-WO-006** | `SDR-WO-006` | **SWR-WO-005** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
+| **CR-WO-007** | `SDR-WO-007` | **SWR-WO-006** | `backend/app/api/v1/endpoints/work_orders.py`, `frontend/src/components/PhotoUploader.vue` | `test_work_order_photo_upload_and_resolve` |
 | **CR-KB-001** | `SDR-KB-001` | **SWR-KB-001** | `backend/app/services/timeline_service.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-KB-002** | `SDR-KB-002` | **SWR-KB-002** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-KB-003** | `SDR-KB-003` | **SWR-KB-003** | `backend/app/api/v1/endpoints/knowledge.py` | `test_knowledge_recommend_and_system_backup` |
