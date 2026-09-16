@@ -15,38 +15,54 @@
               </div>
             </div>
           </template>
-          <div class="tree-tips">点击钻取设备，➕添加子层级/设备，✏️更名</div>
+          <div class="tree-tips">点击钻取设备，➕添加层级/设备，✏️更名，🗑️删除层级/设备</div>
           <el-tree
             :data="hierarchyTree"
-            node-key="name"
+            node-key="node_key"
             default-expand-all
             :expand-on-click-node="false"
             @node-click="handleNodeClick"
           >
             <template #default="{ node, data }">
-              <div class="tree-node">
-                <span class="node-label">{{ data.label }}</span>
-                <span class="node-actions" v-if="userStore.isEngineer">
-                  <el-button
-                    v-if="data.level === 'factory'"
-                    link type="success" size="small"
-                    title="在当前工厂下新增部门"
-                    @click.stop="openCreateHierarchyDialog('department', data)"
-                  >➕</el-button>
-                  <el-button
-                    v-else-if="data.level === 'department'"
-                    link type="success" size="small"
-                    title="在当前部门下新增系统"
-                    @click.stop="openCreateHierarchyDialog('system_name', data)"
-                  >➕</el-button>
-                  <el-button
-                    v-else-if="data.level === 'system_name'"
-                    link type="success" size="small"
-                    title="为此系统录入设备"
-                    @click.stop="openCreateEquipmentForSystem(data)"
-                  >➕</el-button>
-                  <el-button link type="primary" size="small" title="重命名" @click.stop="openRenameDialog(data)">✏️</el-button>
-                  <el-button link type="danger" size="small" title="删除层级" @click.stop="openDeleteHierarchy(data)">🗑️</el-button>
+              <div class="tree-node" :class="{ 'equipment-node': data.level === 'equipment' }">
+                <span class="node-label">
+                  <span v-if="data.level === 'equipment'" class="equipment-label">
+                    <span class="equipment-name">{{ data.label }}</span>
+                    <el-tag size="small" :type="getStatusTag(data.status)" style="margin-left: 6px; font-size: 10px; padding: 0 4px; height: 18px; line-height: 16px;">
+                      {{ getStatusText(data.status) }}
+                    </el-tag>
+                  </span>
+                  <span v-else>{{ data.label }}</span>
+                </span>
+                <span class="node-actions">
+                  <!-- 层级操作 (工厂/车间/系统) -->
+                  <template v-if="userStore.isEngineer && data.level !== 'equipment'">
+                    <el-button
+                      v-if="data.level === 'factory'"
+                      link type="success" size="small"
+                      title="在当前工厂下新增部门"
+                      @click.stop="openCreateHierarchyDialog('department', data)"
+                    >➕</el-button>
+                    <el-button
+                      v-else-if="data.level === 'department'"
+                      link type="success" size="small"
+                      title="在当前部门下新增系统"
+                      @click.stop="openCreateHierarchyDialog('system_name', data)"
+                    >➕</el-button>
+                    <el-button
+                      v-else-if="data.level === 'system_name'"
+                      link type="success" size="small"
+                      title="为此系统录入设备"
+                      @click.stop="openCreateEquipmentForSystem(data)"
+                    >➕</el-button>
+                    <el-button link type="primary" size="small" title="重命名" @click.stop="openRenameDialog(data)">✏️</el-button>
+                    <el-button link type="danger" size="small" title="删除层级" @click.stop="openDeleteHierarchy(data)">🗑️</el-button>
+                  </template>
+                  <!-- 单台设备操作 -->
+                  <template v-else-if="data.level === 'equipment'">
+                    <el-button link type="primary" size="small" title="查看病历档案" @click.stop="openTimeline(data)">📋</el-button>
+                    <el-button link type="danger" size="small" title="移除此设备" @click.stop="handleDelete(data)">🗑️</el-button>
+                  </template>
                 </span>
               </div>
             </template>
@@ -135,13 +151,13 @@
                 <el-tag :type="getStatusTag(row.status)">{{ getStatusText(row.status) }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="快捷操作与病历" width="310" align="center" fixed="right">
+            <el-table-column label="快捷操作与病历" width="340" align="center" fixed="right">
               <template #default="{ row }">
-                <el-button size="small" type="success" plain @click="quickMaintenance(row)">+ 快速维保</el-button>
-                <el-button size="small" type="danger" plain @click="quickRepair(row)">+ 快速报修</el-button>
+                <el-button size="small" type="success" plain @click="quickMaintenance(row)">+ 维保</el-button>
+                <el-button size="small" type="danger" plain @click="quickRepair(row)">+ 报修</el-button>
                 <el-button link type="primary" size="small" @click="openTimeline(row)">📋 病历</el-button>
                 <el-button link type="info" size="small" @click="showQrCode(row)">码</el-button>
-                <el-button v-if="userStore.isEngineer" link type="danger" size="small" @click="handleDelete(row)">删</el-button>
+                <el-button link type="danger" size="small" @click="handleDelete(row)">🗑️ 移除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -176,11 +192,12 @@
                 </div>
               </div>
               <div class="eq-footer">
-                <el-button size="small" type="success" plain @click="quickMaintenance(eq)">+ 快速维保</el-button>
-                <el-button size="small" type="danger" plain @click="quickRepair(eq)">+ 快速报修</el-button>
+                <el-button size="small" type="success" plain @click="quickMaintenance(eq)">+ 维保</el-button>
+                <el-button size="small" type="danger" plain @click="quickRepair(eq)">+ 报修</el-button>
                 <el-button size="small" type="primary" plain @click="openLogHours(eq)">⏱️ 记工时</el-button>
                 <el-button size="small" type="primary" @click="openTimeline(eq)">病历档案</el-button>
                 <el-button size="small" @click="showQrCode(eq)">二维码</el-button>
+                <el-button size="small" type="danger" plain @click="handleDelete(eq)">🗑️ 移除设备</el-button>
               </div>
             </el-card>
           </div>
@@ -705,6 +722,11 @@ async function fetchHierarchyTree() {
 }
 
 function handleNodeClick(data: any) {
+  if (data.level === 'equipment') {
+    activeFilter.value = `设备: ${data.name}`
+    fetchEquipments({ search: data.equipment_code || data.name })
+    return
+  }
   activeFilter.value = `${data.level}: ${data.name}`
   const params: any = {}
   if (data.level === 'factory') params.factory = data.name
@@ -822,11 +844,14 @@ function showQrCode(row: any) {
 }
 
 function handleDelete(row: any) {
-  ElMessageBox.confirm(`确定要移除设备 [${row.equipment_name}] 吗？历史病历将完整保留`, '提示', {
+  const eqName = row.equipment_name || row.name || '设备'
+  ElMessageBox.confirm(`确定要移除设备 [${eqName}] 吗？历史工单与维保病历将完整保留`, '提示', {
+    confirmButtonText: '确定移除',
+    cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
     await apiClient.delete(`/equipments/${row.id}`)
-    ElMessage.success('设备已移除')
+    ElMessage.success(`设备 [${eqName}] 已成功移除`)
     fetchEquipments()
     fetchHierarchyTree()
   }).catch(() => {})
@@ -1024,7 +1049,22 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
+  flex-wrap: wrap;
   border-top: 1px solid #f1f5f9;
   padding-top: 8px;
+}
+.equipment-node {
+  color: #334155;
+}
+.equipment-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+}
+.equipment-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

@@ -449,12 +449,13 @@ def create_system_backup(db_path: Path, uploads_path: Path, output_dir: Path):
 | HTTP Method | 路径 | 权限要求 | 功能描述 | 请求载荷关键字段 | 成功响应 |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | `GET` | `/api/v1/equipments` | 登录用户 | 条件分页查询设备 | `search`, `factory`, `department`, `system_name` | `{total, items: [...]}` |
-| `GET` | `/api/v1/equipments/hierarchy-tree`| 登录用户 | 获取三级双源合并层级树 | 无 | `[{name, count, children: [...]}]` |
+| `GET` | `/api/v1/equipments/hierarchy-tree`| 登录用户 | 获取工厂-部门-系统-设备四级双源合并层级树 | 无 | `[{name, count, children: [...]}]` |
 | `GET` | `/api/v1/equipments/hierarchy-options`| 登录用户 | 获取工厂/部门/系统三级去重选项 | 无 | `{factories: [...], departments: [...], systems: [...]}` |
 | `POST` | `/api/v1/equipments/hierarchy`| ENGINEER | 用户自主预先创建层级架构 | `factory`, `department` (选填), `system_name` (选填) | `{"id": 1, "factory": "...", "department": "...", "system_name": "..."}` |
 | `POST` | `/api/v1/equipments/rename-hierarchy`| ADMIN/ENGINEER | 单事务批量更名 (同步架构表) | `level`, `old_name`, `new_name` | `{"affected_rows": 15}` |
 | `POST` | `/api/v1/equipments/hierarchy-delete`| ADMIN/ENGINEER | 层级级联软删除 (同步架构表) | `factory`, `department`, `system_name`, `cascade` | `{"deleted_equipments": 8}` |
 | `POST` | `/api/v1/equipments` | ENGINEER | 新增设备台账 (自动同步架构表) | `equipment_name`, `model_spec`, `running_mode`... | `{id, equipment_code, qr_code_url}` |
+| `DELETE` | `/api/v1/equipments/{id}` | 登录用户 | 单台设备软删除 (保留历史病历与工单) | 无 | `{"message": "设备已成功移除"}` |
 | `POST` | `/api/v1/equipments/{id}/runtime-logs`| 全员登录 | 双模抄表录入工时 | `reading_hours` / `delta_hours`, `remark` | `{id, delta_hours, total_hours}` |
 | `GET` | `/api/v1/equipments/{id}/timeline` | 登录用户 | 后来人终身病历 | 无 | `[{event_type, event_time, details}]` |
 

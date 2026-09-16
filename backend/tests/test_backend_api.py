@@ -682,3 +682,75 @@ def test_docs_reader_api():
     # 3. 验证白名单与非法路径注入防御
     bad_res = client.get("/api/v1/docs/../../etc/passwd", headers=auth_header(tech_token))
     assert bad_res.status_code in (404, 400)
+
+
+# ==========================================
+# 14. 系统下设备挂载与单设备删除测试
+# ==========================================
+def test_equipment_delete_and_hierarchy_tree_children():
+    eng_token = get_token("engineer1", "password123")
+    fac_name = f"智能工厂_{secrets.token_hex(2)}"
+    dept_name = "自动化车间"
+    sys_name = "精密冲压系统"
+    
+    # 1. 录入一台设备
+    eq_res = client.post("/api/v1/equipments", headers=auth_header(eng_token), json={
+        "factory": fac_name,
+        "department": dept_name,
+        "system_name": sys_name,
+        "equipment_name": "500T 伺服冲压机",
+        "model_spec": "SP-500",
+        "maintenance_interval_hours": 200.0,
+        "initial_running_hours": 10.0
+    })
+    assert eq_res.status_code == 200
+    eq_id = eq_res.json()["id"]
+    
+    # 2. 检查 hierarchy-tree 返回包含四级结构 (工厂 -> 部门 -> 系统 -> 设备)
+    tree_res = client.get("/api/v1/equipments/hierarchy-tree", headers=auth_header(eng_token))
+    assert tree_res.status_code == 200
+    tree_data = tree_res.json()
+    
+    target_fac = next((f for f in tree_data if f["name"] == fac_name), None)
+    assert target_fac is not None
+    assert target_fac["count"] >= 1
+    
+    target_dept = next((d for d in target_fac["children"] if d["name"] == dept_name), None)
+    assert target_dept is not None
+    
+    target_sys = next((s for s in target_dept["children"] if s["name"] == sys_name), None)
+    assert target_sys is not None
+    assert target_sys["count"] >= 1
+    assert "children" in target_sys
+    assert len(target_sys["children"]) >= 1
+    
+    target_eq = next((e for e in target_sys["children"] if e["id"] == eq_id), None)
+    assert target_eq is not None
+    assert target_eq["level"] == "equipment"
+    assert "500T 伺服冲压机" in target_eq["label"]
+    
+    # 3. 执行删除设备 DELETE /api/v1/equipments/{id}
+    del_res = client.delete(f"/api/v1/equipments/{eq_id}", headers=auth_header(eng_token))
+    assert del_res.status_code == 200
+    assert "已成功移除" in del_res.json()["message"]
+    
+    # 4. 再次获取列表与树，确认设备已被软删除，但系统层级完整保留且计数归零
+    eq_list = client.get("/api/v1/equipments", headers=auth_header(eng_token), params={"factory": fac_name})
+    assert len(eq_list.json()) == 0
+    
+    tree_res_after = client.get("/api/v1/equipments/hierarchy-tree", headers=auth_header(eng_token))
+    assert tree_res_after.status_code == 200
+    tree_after = tree_res_after.json()
+    
+    fac_after = next((f for f in tree_after if f["name"] == fac_name), None)
+    assert fac_after is not None
+    assert fac_after["count"] == 0
+    
+    dept_after = next((d for d in fac_after["children"] if d["name"] == dept_name), None)
+    assert dept_after is not None
+    
+    sys_after = next((s for s in dept_after["children"] if s["name"] == sys_name), None)
+    assert sys_after is not None
+    assert sys_after["count"] == 0
+    assert len(sys_after["children"]) == 0
+

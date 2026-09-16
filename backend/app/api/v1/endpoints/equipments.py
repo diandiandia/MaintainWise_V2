@@ -138,53 +138,82 @@ def get_hierarchy_tree(
         if dept not in tree[fac]["departments"]:
             tree[fac]["departments"][dept] = {"count": 0, "systems": {}}
         if sys not in tree[fac]["departments"][dept]["systems"]:
-            tree[fac]["departments"][dept]["systems"][sys] = 0
+            tree[fac]["departments"][dept]["systems"][sys] = {"count": 0, "equipments": []}
 
-    # 2. 统计各层级挂载的有效设备数
+    # 2. 统计各层级挂载的有效设备并获取设备列表
     cursor.execute("""
-        SELECT factory, department, system_name, COUNT(id) as count
+        SELECT id, factory, department, system_name, equipment_name, equipment_code, model_spec, status
         FROM equipments
         WHERE is_deleted = 0
-        GROUP BY factory, department, system_name
-        ORDER BY factory, department, system_name
+        ORDER BY id DESC
     """)
-    rows = cursor.fetchall()
+    eq_rows = cursor.fetchall()
     
-    for r in rows:
+    for r in eq_rows:
         fac = r["factory"]
         dept = r["department"]
         sys = r["system_name"]
-        cnt = r["count"]
         
         if fac not in tree:
             tree[fac] = {"count": 0, "departments": {}}
-        tree[fac]["count"] += cnt
+        tree[fac]["count"] += 1
         
         if dept not in tree[fac]["departments"]:
             tree[fac]["departments"][dept] = {"count": 0, "systems": {}}
-        tree[fac]["departments"][dept]["count"] += cnt
+        tree[fac]["departments"][dept]["count"] += 1
         
         if sys not in tree[fac]["departments"][dept]["systems"]:
-            tree[fac]["departments"][dept]["systems"][sys] = 0
-        tree[fac]["departments"][dept]["systems"][sys] += cnt
+            tree[fac]["departments"][dept]["systems"][sys] = {"count": 0, "equipments": []}
+            
+        tree[fac]["departments"][dept]["systems"][sys]["count"] += 1
+        tree[fac]["departments"][dept]["systems"][sys]["equipments"].append({
+            "id": r["id"],
+            "equipment_name": r["equipment_name"],
+            "equipment_code": r["equipment_code"],
+            "model_spec": r["model_spec"],
+            "status": r["status"]
+        })
         
-    # 组装为 Element Plus el-tree 标准 JSON 结构
+    # 组装为 Element Plus el-tree 标准 JSON 结构 (工厂 - 部门 - 系统 - 设备)
     result = []
     for fac_name, fac_data in tree.items():
         dept_children = []
         for dept_name, dept_data in fac_data["departments"].items():
             sys_children = []
-            for sys_name, sys_cnt in dept_data["systems"].items():
+            for sys_name, sys_info in dept_data["systems"].items():
+                sys_cnt = sys_info["count"]
+                eq_list = sys_info["equipments"]
+                
+                eq_children = []
+                for eq in eq_list:
+                    eq_children.append({
+                        "node_key": f"eq_{eq['id']}",
+                        "id": eq["id"],
+                        "label": f"📦 {eq['equipment_name']}",
+                        "name": eq["equipment_name"],
+                        "equipment_code": eq["equipment_code"],
+                        "model_spec": eq["model_spec"],
+                        "status": eq["status"],
+                        "level": "equipment",
+                        "factory": fac_name,
+                        "department": dept_name,
+                        "system_name": sys_name,
+                        "count": 0
+                    })
+                
                 sys_children.append({
+                    "node_key": f"sys_{fac_name}_{dept_name}_{sys_name}",
                     "label": f"{sys_name} ({sys_cnt})",
                     "name": sys_name,
                     "level": "system_name",
                     "factory": fac_name,
                     "department": dept_name,
                     "system_name": sys_name,
-                    "count": sys_cnt
+                    "count": sys_cnt,
+                    "children": eq_children
                 })
             dept_children.append({
+                "node_key": f"dept_{fac_name}_{dept_name}",
                 "label": f"{dept_name} ({dept_data['count']})",
                 "name": dept_name,
                 "level": "department",
@@ -194,6 +223,7 @@ def get_hierarchy_tree(
                 "children": sys_children
             })
         result.append({
+            "node_key": f"fac_{fac_name}",
             "label": f"{fac_name} ({fac_data['count']})",
             "name": fac_name,
             "level": "factory",
@@ -564,13 +594,17 @@ def update_equipment(
 def delete_equipment(
     equipment_id: int,
     db: sqlite3.Connection = Depends(get_db),
-    engineer: dict = Depends(require_engineer)
+    current_user: dict = Depends(get_current_user)
 ):
-    """工程师专属：软删除设备"""
+    """软删除设备"""
     cursor = db.cursor()
-    cursor.execute("UPDATE equipments SET is_deleted = 1 WHERE id = ?", (equipment_id,))
+    cursor.execute("SELECT id, equipment_name FROM equipments WHERE id = ? AND is_deleted = 0", (equipment_id,))
+    row = cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="未找到该设备或已被删除")
+    cursor.execute("UPDATE equipments SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (equipment_id,))
     db.commit()
-    return {"message": "设备已成功移除"}
+    return {"message": f"设备 [{row['equipment_name']}] 已成功移除"}
 
 @router.post("/{equipment_id}/runtime-logs", response_model=RuntimeLogOut)
 def log_runtime_hours(
