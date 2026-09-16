@@ -1,0 +1,16 @@
+<service>
+  <id>MaintainWiseService</id>
+  <name>MaintainWise 2.0 Factory Maintenance Service</name>
+  <description>MaintainWise 2.0 智能工厂设备管理系统后台守护服务 (FastAPI + SQLite WAL 单端口全栈服务)</description>
+  <executable>python</executable>
+  <arguments>-m uvicorn app.main:app --host 0.0.0.0 --port 8000 --app-dir backend</arguments>
+  <workingdirectory>%BASE%\..\..</workingdirectory>
+  <logmode>roll-by-size</logmode>
+  <logpath>%BASE%\logs</logpath>
+  <sizeThreshold>10240</sizeThreshold>
+  <keepFiles>10</keepFiles>
+  <onfailure action="restart" delay="10 sec"/>
+  <resetfailure>1 hour</resetfailure>
+  <priority>Normal</priority>
+  <stoptimeout>15 sec</stoptimeout>
+</service>

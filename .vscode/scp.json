@@ -1,0 +1,23 @@
+{
+    "host": "110.40.140.35",
+    "port": 22,
+    "user": "ubuntu",
+    "ignore": [
+        ".git",
+        ".vscode",
+        "backend/venv",
+        "venv",
+        ".venv",
+        "frontend/node_modules",
+        "node_modules",
+        "data/maintainwise.db",
+        "data/maintainwise.db-wal",
+        "data/maintainwise.db-shm",
+        "data/backups",
+        "__pycache__",
+        ".pytest_cache"
+    ],
+    "remotePath": "/home/ubuntu/",
+    "identity_file": "~/.ssh/id_rsa",
+    "uploadOnSave": true
+}

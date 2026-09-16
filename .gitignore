@@ -1,0 +1,53 @@
+# ==============================================================================
+# MaintainWise 2.0 - Git Ignore Configuration
+# ==============================================================================
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Python Virtual Environments
+backend/venv/
+venv/
+.venv/
+env/
+
+# Frontend Node Modules
+frontend/node_modules/
+frontend/.pnpm-store/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.env.local
+
+# SQLite Database & Live Runtime Data
+data/maintainwise.db
+data/maintainwise.db-journal
+data/maintainwise.db-wal
+data/maintainwise.db-shm
+data/backups/*
+!data/backups/.gitkeep
+data/uploads/qrcodes/*
+!data/uploads/qrcodes/.gitkeep
+
+# System & Application Logs
+*.log
+logs/
+deploy/windows/logs/
+
+# OS & Editor Specific Files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+*.swp
+*.swo
+
+# VSCode configuration (preserve project config if needed)
+.vscode/*
+!.vscode/scp.json
+!.vscode/settings.json
