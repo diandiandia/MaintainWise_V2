@@ -754,3 +754,61 @@ def test_equipment_delete_and_hierarchy_tree_children():
     assert sys_after["count"] == 0
     assert len(sys_after["children"]) == 0
 
+
+# ==========================================
+# 15. 完工修复照片上传（拍照/本地导入）与工单流转测试
+# ==========================================
+def test_work_order_photo_upload_and_resolve():
+    eng_token = get_token("engineer1", "password123")
+    
+    # 1. 模拟上传单张完工修复照片 (模拟手机现场拍照上传)
+    photo_content = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00\xff\xdb\x00C\x00"
+    files = {"file": ("camera_snap_01.jpg", photo_content, "image/jpeg")}
+    upload_res = client.post("/api/v1/work-orders/upload-photo", headers=auth_header(eng_token), files=files)
+    assert upload_res.status_code == 200
+    upload_data = upload_res.json()
+    assert "url" in upload_data
+    photo_url_1 = upload_data["url"]
+    assert photo_url_1.startswith("/uploads/repairs/")
+    assert photo_url_1.endswith(".jpg")
+    
+    # 2. 模拟批量上传多张照片 (模拟从本地图库批量导入)
+    multi_files = [
+        ("files", ("gallery_photo_1.png", b"fake_png_data_1", "image/png")),
+        ("files", ("gallery_photo_2.jpg", b"fake_jpg_data_2", "image/jpeg"))
+    ]
+    multi_res = client.post("/api/v1/work-orders/upload-photos", headers=auth_header(eng_token), files=multi_files)
+    assert multi_res.status_code == 200
+    multi_data = multi_res.json()
+    assert multi_data["count"] == 2
+    photo_url_2 = multi_data["urls"][0]
+    photo_url_3 = multi_data["urls"][1]
+    
+    # 3. 创建工单并指派接单
+    wo_res = client.post("/api/v1/work-orders", headers=auth_header(eng_token), json={
+        "equipment_id": 1,
+        "title": "冷却循环泵异响与动平衡修复测试",
+        "urgency": "MAJOR"
+    })
+    assert wo_res.status_code == 200
+    wo_id = wo_res.json()["id"]
+    
+    client.put(f"/api/v1/work-orders/{wo_id}/dispatch", headers=auth_header(eng_token), json={})
+    
+    # 4. 提交完工复盘，携带上传的完工修复照片 (支持逗号多张)
+    combined_photos = f"{photo_url_1}, {photo_url_2}"
+    resolve_res = client.put(f"/api/v1/work-orders/{wo_id}/resolve", headers=auth_header(eng_token), json={
+        "root_cause": "主轴动平衡偏心导致高速震动异响",
+        "solution_steps": "1. 拆卸泵壳；2. 激光动平衡对中调校；3. 紧固联轴器地脚螺栓并试运行30分钟。",
+        "spare_parts": "对中垫片 x 4",
+        "repair_duration_minutes": 45,
+        "repair_photos": combined_photos
+    })
+    assert resolve_res.status_code == 200
+    resolved_wo = resolve_res.json()
+    assert resolved_wo["status"] == "PENDING_CONFIRM"
+    assert resolved_wo["repair_photos"] == combined_photos
+    assert photo_url_1 in resolved_wo["repair_photos"]
+    assert photo_url_2 in resolved_wo["repair_photos"]
+
+

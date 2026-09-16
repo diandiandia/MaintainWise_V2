@@ -469,9 +469,11 @@ def create_system_backup(db_path: Path, uploads_path: Path, output_dir: Path):
 | HTTP Method | 路径 | 权限要求 | 功能描述 | 请求载荷关键字段 | 成功响应 |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | `POST` | `/api/v1/work-orders` | 全员登录 | 30秒极速报修 | `equipment_id`, `title`, `urgency` | `{id, order_no, status: 'PENDING'}` |
+| `POST` | `/api/v1/work-orders/upload-photo` | 全员登录 | 现场拍照与本地图库单张上传 | `file` (multipart/form-data) | `{url, file_name, message}` |
+| `POST` | `/api/v1/work-orders/upload-photos`| 全员登录 | 本地图库批量多选照片上传 | `files` (multipart/form-data) | `{urls: [...], count, message}` |
 | `PUT` | `/api/v1/work-orders/{id}` | 全员登录 | 工单草稿纠错修改 | `title`, `phenomenon`, `urgency` | `{id, status: 'PENDING'}` |
 | `PUT` | `/api/v1/work-orders/{id}/dispatch`| 全员登录 | 指派责任人/抢单 | `assignee_id` | `{id, status: 'IN_PROGRESS'}` |
-| `PUT` | `/api/v1/work-orders/{id}/resolve`| 承修人/ENGINEER| 完工填报复盘干货 | `root_cause` (必填), `solution_steps` (必填) | `{id, status: 'PENDING_CONFIRM'}` |
+| `PUT` | `/api/v1/work-orders/{id}/resolve`| 承修人/ENGINEER| 完工填报复盘干货 | `root_cause` (必填), `solution_steps` (必填), `repair_photos` | `{id, status: 'PENDING_CONFIRM'}` |
 | `PUT` | `/api/v1/work-orders/{id}/confirm`| ENGINEER | 现场试车结案 | 无 | `{id, status: 'CLOSED'}` (设备变正常) |
 | `PUT` | `/api/v1/work-orders/{id}/calibrate-typical`| ENGINEER | 标定典型案例至知识库 | 无 | `{"is_featured_case": true}` |
 | `POST` | `/api/v1/work-orders/{id}/to-knowledge`| ENGINEER | 1键萃取至知识库 | 无 | `{case_id, title}` |

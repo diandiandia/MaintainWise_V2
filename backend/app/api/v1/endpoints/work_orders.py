@@ -1,8 +1,10 @@
 import sqlite3
 import secrets
+from pathlib import Path
 from datetime import datetime
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, UploadFile, File
+from app.core.config import settings
 from app.core.deps import get_current_user, require_engineer
 from app.db.session import get_db
 from app.schemas.work_order import WorkOrderCreate, WorkOrderUpdate, WorkOrderDispatch, WorkOrderResolve, WorkOrderOut
@@ -290,4 +292,90 @@ def extract_to_knowledge(
     db.commit()
     case_id = cursor.lastrowid
     return {"message": "成功审核并沉淀至全厂排故知识库", "case_id": case_id, "title": title}
+
+@router.post("/upload-photo")
+async def upload_work_order_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    现场拍照与本地图库单张照片上传接口：
+    支持现场移动终端/手机拍照直传或本地相册图库导入。
+    文件保存至 /data/uploads/repairs/ 目录，返回静态访问相对 URL。
+    """
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="未选择上传文件")
+        
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".heic", ".gif"}
+    ext = Path(file.filename).suffix.lower()
+    if not ext or ext not in allowed_exts:
+        ext = ".jpg"
+        
+    repair_dir = settings.UPLOADS_DIR / "repairs"
+    repair_dir.mkdir(parents=True, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    rand_hex = secrets.token_hex(4)
+    file_name = f"repair_{timestamp}_{rand_hex}{ext}"
+    target_path = repair_dir / file_name
+    
+    # 限制上传大小 15MB
+    max_size = 15 * 1024 * 1024
+    size = 0
+    with open(target_path, "wb") as buffer:
+        while chunk := await file.read(1024 * 1024):
+            size += len(chunk)
+            if size > max_size:
+                target_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=413, detail="上传照片大小不能超过 15MB")
+            buffer.write(chunk)
+            
+    url = f"/uploads/repairs/{file_name}"
+    return {
+        "url": url,
+        "file_name": file_name,
+        "size": size,
+        "message": "照片上传成功"
+    }
+
+@router.post("/upload-photos")
+async def upload_work_order_photos(
+    files: List[UploadFile] = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    批量照片上传接口：支持一次性导入多张本地照片
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="未选择上传文件")
+        
+    repair_dir = settings.UPLOADS_DIR / "repairs"
+    repair_dir.mkdir(parents=True, exist_ok=True)
+    
+    allowed_exts = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".heic", ".gif"}
+    uploaded = []
+    
+    for f in files:
+        if not f.filename:
+            continue
+        ext = Path(f.filename).suffix.lower()
+        if not ext or ext not in allowed_exts:
+            ext = ".jpg"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        rand_hex = secrets.token_hex(4)
+        file_name = f"repair_{timestamp}_{rand_hex}{ext}"
+        target_path = repair_dir / file_name
+        
+        with open(target_path, "wb") as buffer:
+            while chunk := await f.read(1024 * 1024):
+                buffer.write(chunk)
+                
+        uploaded.append(f"/uploads/repairs/{file_name}")
+        
+    return {
+        "urls": uploaded,
+        "count": len(uploaded),
+        "message": f"成功上传 {len(uploaded)} 张照片"
+    }
+
 

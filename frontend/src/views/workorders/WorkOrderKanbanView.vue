@@ -184,6 +184,12 @@
         <el-form-item v-if="editForm.spare_parts !== undefined" label="更换备件">
           <el-input v-model="editForm.spare_parts" placeholder="更换备件型号数量" />
         </el-form-item>
+        <el-form-item v-if="editForm.repair_photos !== undefined" label="完工修复照片">
+          <PhotoUploader
+            v-model="editForm.repair_photos"
+            tip="📷 拍照或 🖼️ 从本地图库导入修复达标照片"
+          />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="editModalVisible = false">取消</el-button>
@@ -239,7 +245,14 @@
             <strong>完工修复照片 (试车达标依据)：</strong>
             <div style="display: flex; gap: 8px; margin-top: 6px; flex-wrap: wrap;">
               <span v-for="(p, pIdx) in getPhotoList(selectedWo.repair_photos)" :key="pIdx">
-                <el-image :src="p" style="width: 120px; height: 120px; border-radius: 4px; border: 1px solid #e2e8f0;" fit="cover" />
+                <el-image
+                  :src="p"
+                  :preview-src-list="getPhotoList(selectedWo.repair_photos)"
+                  :initial-index="pIdx"
+                  preview-teleported
+                  style="width: 120px; height: 120px; border-radius: 4px; border: 1px solid #e2e8f0; cursor: pointer;"
+                  fit="cover"
+                />
               </span>
             </div>
           </div>
@@ -275,10 +288,10 @@
           <el-input-number v-model="resolveForm.repair_duration_minutes" :min="1" />
         </el-form-item>
         <el-form-item label="完工修复照片">
-          <el-input v-model="resolveForm.repair_photos" placeholder="输入修复后照片路径或URL (选填，多张用逗号分隔)" />
-          <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">
-            示例: /uploads/repairs/motor_fixed.jpg, 可展示修好后的设备运转正常状态
-          </div>
+          <PhotoUploader
+            v-model="resolveForm.repair_photos"
+            tip="📷 拍照上传或 🖼️ 从本地图库导入修复达标照片 (支持多张)"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -295,6 +308,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import apiClient from '../../api/client'
 import { useUserStore } from '../../stores/user'
+import PhotoUploader from '../../components/PhotoUploader.vue'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -335,7 +349,8 @@ const editForm = reactive<any>({
   phenomenon: '',
   root_cause: '',
   solution_steps: '',
-  spare_parts: ''
+  spare_parts: '',
+  repair_photos: ''
 })
 
 function openEditModal(wo: any) {
@@ -346,6 +361,7 @@ function openEditModal(wo: any) {
   editForm.root_cause = wo.root_cause || ''
   editForm.solution_steps = wo.solution_steps || ''
   editForm.spare_parts = wo.spare_parts || ''
+  editForm.repair_photos = wo.repair_photos || ''
   editModalVisible.value = true
 }
 

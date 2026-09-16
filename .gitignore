@@ -33,6 +33,8 @@ data/backups/*
 !data/backups/.gitkeep
 data/uploads/qrcodes/*
 !data/uploads/qrcodes/.gitkeep
+data/uploads/repairs/*
+!data/uploads/repairs/.gitkeep
 
 # System & Application Logs
 *.log
