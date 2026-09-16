@@ -27,9 +27,11 @@ if "%CHOICE%"=="1" (
     echo Starting foreground test service...
     call "%~dp02_start_foreground.bat"
 ) else if "%CHOICE%"=="2" (
-    echo Installing and starting Windows service...
+    echo Installing Windows background service...
     call "%~dp03_install_service.bat"
-    call "%~dp04_start_service.bat"
+    if exist "%~dp0MaintainWiseService.exe" (
+        call "%~dp04_start_service.bat"
+    )
 ) else (
     echo Initialization complete. You can use batch files in deploy\windows.
     pause
