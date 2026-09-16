@@ -595,17 +595,13 @@ flowchart TD
   4. **路径中立性**：Python 代码全面使用 `pathlib.Path`，杜绝 Linux `/` 与 Windows `\` 路径分隔符差异；
   5. **Windows 批处理防乱码**：所有 Windows `.bat` 脚本强制采用 **CRLF 换行**，首行声明 **`chcp 65001 >nul` (UTF-8)**，确保中文显示完全正常；
   6. **Linux 后台持久守护 (setsid + 会话脱离)**：针对轻量容器或非 systemd 宿主，系统启动采用 `setsid` 独立会话与标准输入脱离机制，SIGHUP 免疫，用户关闭终端或断开 SSH 后台服务 100% 持续稳定运行；
-  7. **双轨同构运维工具箱**：根目录与部署目录下同时提供功能完全对等的 Linux Shell 脚本与 Windows 批处理工具箱，根目录常驻 `./start.sh`、`./stop.sh`、`./status.sh`、`./restart.sh` 极简命令。
+  7. **统一命令行总控架构 (Unified CLI)**：根目录收敛为唯一的统一总控脚本 `maintainwise.sh` (Linux) 与 `maintainwise.bat` (Windows)，支持 `deploy/start/stop/restart/status/logs/backup` 参数化指令，彻底根除根目录散乱脚本。
 
 ### 9.2 双轨部署脚本目录树
 ```
 MaintainWise_V2/
-├── start.sh                         # 根目录一键后台守护启动 (脱离终端会话持久运行)
-├── stop.sh                          # 根目录一键停止后台服务 (释放端口与锁文件)
-├── status.sh                        # 根目录一键查看运行状态、PID、资源与最近日志
-├── restart.sh                       # 根目录一键平滑重启后台服务
-├── deploy_linux.sh                  # 根目录 Linux 一键全自动综合部署入口
-├── deploy_windows.bat               # 根目录 Windows 一键全自动综合部署入口
+├── maintainwise.sh                  # 根目录 Linux 统一总控入口 (./mw.sh 极简别名)
+├── maintainwise.bat                 # 根目录 Windows 统一总控入口 (mw.bat 极简别名)
 │
 ├── deploy/                          # 统一双轨部署工具总目录
 │   ├── linux/                       # Linux 专用一键运维脚本工具箱

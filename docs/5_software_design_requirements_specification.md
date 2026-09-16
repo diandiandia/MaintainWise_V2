@@ -329,18 +329,18 @@
 
 ### SWR-DEP-003：Windows 批处理 CRLF 与 UTF-8 编码基线
 * **上游追溯**：`SDR-DEP-004`, `CR-CON-005`
-* **实现定位**：`deploy/windows/*.bat` 及根目录 `一键部署_Windows.bat`
+* **实现定位**：`deploy/windows/*.bat` 及根目录 `maintainwise.bat`
 * **规范**：文件统一保存为标准 CRLF 换行，首行声明 `chcp 65001 >nul`。
 * **测试用例**：`test_spa_static_and_api_coexist()`
 
-### SWR-DEP-004：Linux 容器环境进程脱离常驻与运维控制套件
+### SWR-DEP-004：Linux 容器环境进程脱离常驻与统一命令行控制套件
 * **上游追溯**：`SDR-DEP-006`, `CR-CON-006`
-* **实现定位**：`deploy/linux/start_background.sh`、`stop_background.sh`、`status.sh`、`restart_background.sh`、根目录软链接/快捷脚本 (`./start.sh`, `./stop.sh`, `./status.sh`, `./restart.sh`)
+* **实现定位**：`deploy/linux/start_background.sh` 等脚本及根目录统一总控 `maintainwise.sh` (或 `./mw.sh`)
 * **规范**：
   - 针对无 systemd 环境，启动命令使用 `setsid python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 < /dev/null >> logs/maintainwise.log 2>&1 &`；
   - 启动后将 PID 写入 `maintainwise.pid`；
   - 停止脚本支持基于 PID 发送 SIGTERM，10秒超时后发送 SIGKILL，并释放端口删除 PID 文件；
-  - 状态脚本可快速输出存活状态、PID、CPU/MEM 内存占用、端口监听以及最后 15 行日志输出。
+  - 根目录统一由 `./maintainwise.sh <action>` 提供 `deploy|start|stop|restart|status|logs|backup` 全套参数化运维。
 * **测试用例**：`test_spa_static_and_api_coexist()`
 
 ---
@@ -383,5 +383,5 @@
 | **CR-CON-002** | `SDR-DEP-005` | **SWR-DEP-004** | `deploy/` 双轨脚本目录 | `test_spa_static_and_api_coexist` |
 | **CR-CON-003** | `SDR-DEP-001`, `SDR-DEP-002` | **SWR-DEP-001** | `backend/app/main.py` | `test_spa_static_and_api_coexist` |
 | **CR-CON-004** | `SDR-DEP-001` | **SWR-DEP-001** | `backend/app/main.py` | `test_spa_static_and_api_coexist` |
-| **CR-CON-005** | `SDR-DEP-004` | **SWR-DEP-003** | `deploy/windows/*.bat` | `test_spa_static_and_api_coexist` |
-| **CR-CON-006** | `SDR-DEP-006` | **SWR-DEP-004** | `deploy/linux/start_background.sh` 等脚本 | `test_spa_static_and_api_coexist` |
+| **CR-CON-005** | `SDR-DEP-004` | **SWR-DEP-003** | `maintainwise.bat`, `deploy/windows/*.bat` | `test_spa_static_and_api_coexist` |
+| **CR-CON-006** | `SDR-DEP-006` | **SWR-DEP-004** | `maintainwise.sh`, `deploy/linux/` 脚本库 | `test_spa_static_and_api_coexist` |

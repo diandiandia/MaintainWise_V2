@@ -321,12 +321,12 @@
 * **需求描述**：所有供 Windows 执行的 `.bat` 批处理脚本必须采用 **CRLF (Windows 标准换行)**，且文件第一行必须声明 **`chcp 65001 >nul`**，确保在中文版 Windows CMD 中输出汉字绝不乱码。
 * **验收判据**：批处理在 Windows 命令提示符运行中文无乱码，无行尾解析错误。
 
-### CR-CON-006：Linux 后台守护持久化与无交互进程生命周期管理
-* **需求描述**：针对轻量容器、开发机或未配置 systemd 的 Linux 生产环境，系统启动必须支持基于 `setsid` 与标准输入脱离的独立会话后台持久运行机制。用户退出 Shell 终端或断开 SSH 连接后，服务绝不中断。同时系统根目录常驻四个快捷运维脚本（`./start.sh`、`./stop.sh`、`./status.sh`、`./restart.sh`），提供精准的进程 PID 追踪、端口释放与日志诊断支持。
+### CR-CON-006：Linux 后台守护持久化与统一命令行控制套件
+* **需求描述**：针对轻量容器、开发机或未配置 systemd 的 Linux 生产环境，系统启动必须支持基于 `setsid` 与标准输入脱离的独立会话后台持久运行机制。用户退出 Shell 终端或断开 SSH 连接后，服务绝不中断。同时系统根目录提供统一总控脚本（`./maintainwise.sh <action>`，简写别名 `./mw.sh`），支持 `deploy`、`start`、`stop`、`status`、`restart`、`logs`、`backup` 等参数化快捷运维，提供精准的进程 PID 追踪、端口释放与日志诊断支持。
 * **验收判据**：
-  - 执行 `./start.sh` 后，服务在后台稳定监听 8000 端口，并生成 `maintainwise.pid`；
+  - 执行 `./maintainwise.sh start` 后，服务在后台稳定监听 8000 端口，并生成 `maintainwise.pid`；
   - 退出 SSH 或关闭终端，后台服务 100% 持续稳定运行；
-  - 执行 `./status.sh` 实时报告运行状态，`./stop.sh` 彻底释放端口。
+  - 执行 `./maintainwise.sh status` 实时报告运行状态，`./maintainwise.sh stop` 彻底释放端口。
 
 ---
 

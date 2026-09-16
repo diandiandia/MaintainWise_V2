@@ -27,7 +27,7 @@ echo "      前台交互调试启动 (端口 8000，按 Ctrl+C 退出)"
 echo "  [3] Install & Start Systemd Daemon (For systemd-enabled hosts)"
 echo "      安装并启动为 Linux Systemd 系统后台守护服务"
 echo "  [4] Exit now (Environment is ready)"
-echo "      仅完成环境初始化，稍后通过 ./start.sh 自行启动"
+echo "      仅完成环境初始化，稍后通过 ./maintainwise.sh start 自行启动"
 echo "-----------------------------------------------------------------------"
 read -p "Please select [1-4] (Default: 1): " CHOICE
 CHOICE=${CHOICE:-1}
@@ -52,7 +52,7 @@ case "$CHOICE" in
         fi
         ;;
     4)
-        echo "Initialization complete. You can start anytime via ./start.sh or deploy/linux/ scripts."
+        echo "Initialization complete. You can start anytime via ./maintainwise.sh start or ./mw.sh start."
         ;;
     *)
         echo "Defaulting to background daemon..."

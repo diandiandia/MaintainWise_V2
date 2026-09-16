@@ -28,12 +28,8 @@ MaintainWise 2.0 软件代码库采用前后端分离同构工程结构，物理
 ```
 MaintainWise_V2/
 ├── README.md                        # 项目主说明文档与极速上手指南
-├── start.sh                         # Linux 根目录后台常驻守护启动快捷脚本
-├── stop.sh                          # Linux 根目录后台停止快捷脚本
-├── status.sh                        # Linux 根目录后台状态诊断快捷脚本
-├── restart.sh                       # Linux 根目录后台平滑重启快捷脚本
-├── deploy_linux.sh                  # Linux 根目录全自动部署向导入口
-├── deploy_windows.bat               # Windows 根目录全自动部署向导入口 (UTF-8/CRLF)
+├── maintainwise.sh                  # Linux 根目录：统一命令行总控 (./mw.sh 极简别名)
+├── maintainwise.bat                 # Windows 根目录：统一命令行总控 (mw.bat 极简别名)
 │
 ├── backend/                         # 后端 Python/FastAPI 异步微核心
 │   ├── app/
@@ -570,7 +566,7 @@ WantedBy=multi-user.target
   2. `deploy/linux/stop_background.sh`：读取 PID 发送 SIGTERM，超时 10 秒升级为 SIGKILL，自动释放 8000 端口并删除 PID 文件；
   3. `deploy/linux/status.sh`：检查运行状态、PID、CPU/MEM 内存占用、端口监听并截取最后 15 行日志；
   4. `deploy/linux/restart_background.sh`：原子平滑重启；
-  5. 根目录快捷命令：`./start.sh`、`./stop.sh`、`./status.sh`、`./restart.sh`，赋予执行权限，极大提升现场运维便捷性。
+  5. 根目录统一命令行总控：`./maintainwise.sh <action>`（简写别名 `./mw.sh <action>`），支持 `deploy|start|stop|restart|status|logs|backup`，统一管理服务生命周期。
 
 ---
 

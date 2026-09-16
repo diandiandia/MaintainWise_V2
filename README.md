@@ -24,13 +24,8 @@ MaintainWise 2.0 是专为智能制造工厂打造的高性能、轻量化设备
 MaintainWise_V2/
 ├── README.md                        # 项目主说明文档与极速上手指南
 ├── .gitignore                       # Git 忽略配置 (屏蔽本地库、pid锁与运行日志)
-│
-├── start.sh                         # Linux 根目录：一键后台常驻守护启动 (脱离终端会话)
-├── stop.sh                          # Linux 根目录：一键平滑停止后台服务
-├── status.sh                        # Linux 根目录：一键诊断服务状态、PID、端口与最新日志
-├── restart.sh                       # Linux 根目录：一键平滑重启服务
-├── deploy_linux.sh                  # Linux 根目录：综合部署向导入口
-├── deploy_windows.bat               # Windows 根目录：综合部署向导入口 (UTF-8/CRLF)
+├── maintainwise.sh                  # Linux 根目录：统一总控脚本 (./mw.sh 为极简别名)
+├── maintainwise.bat                 # Windows 根目录：统一总控脚本 (mw.bat 为极简别名)
 │
 ├── backend/                         # 后端工程目录 (Python 3.10+ / FastAPI 微核心)
 │   ├── app/
@@ -115,23 +110,31 @@ MaintainWise_V2/
 
 ## 🚀 极速部署指引与常用运维命令
 
-### Linux 环境（推荐后台守护模式）
+### Linux 环境（统一单入口总控）
 ```bash
-# 方式一：首次完整部署向导
-bash deploy_linux.sh
+# 1. 首次完整安装与部署向导
+./maintainwise.sh deploy    # 或 ./mw.sh deploy
 
-# 方式二：根目录日常运维快捷命令
-./start.sh    # 启动后台守护进程 (退出终端不中断)
-./status.sh   # 查看运行状态、PID、CPU/内存占用与日志
-./restart.sh  # 重启服务
-./stop.sh     # 停止后台服务
+# 2. 日常快捷运维指令 (支持参数调用)
+./maintainwise.sh start     # 启动后台守护进程 (退出终端不中断)
+./maintainwise.sh status    # 查看运行状态、PID、CPU/内存占用与日志
+./maintainwise.sh restart   # 重启后台守护服务
+./maintainwise.sh stop      # 停止后台服务
+./maintainwise.sh logs      # 实时追踪最新运行日志 (tail -f)
+./maintainwise.sh backup    # 一键执行 SQLite WAL 热备份
 ```
 
-### Windows 环境
+### Windows 环境（统一单入口总控）
 1. 安装 **Python 3.10+**（勾选 `Add python.exe to PATH`）；
-2. 双击根目录下的 **`deploy_windows.bat`**；
-3. 选择 `[1]` 进入前台测试，或选择 `[2]` 注册为 Windows 后台开机自启系统服务；
-4. 打开浏览器访问：`http://127.0.0.1:8000`。
+2. 命令行执行常用运维指令：
+   ```cmd
+   maintainwise.bat deploy    :: 一键完整安装向导
+   maintainwise.bat start     :: 启动 Windows 后台服务
+   maintainwise.bat status    :: 查看服务状态与端口监听
+   maintainwise.bat restart   :: 重启 Windows 服务
+   maintainwise.bat stop      :: 停止 Windows 服务
+   ```
+3. 打开浏览器访问：`http://127.0.0.1:8000`。
 
 ---
 

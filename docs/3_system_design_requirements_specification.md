@@ -543,7 +543,7 @@
 * **所属系统层级**：运维工具包工程
 * **设计实现规范**：
   同时维护功能完全对等的双轨运维体系：
-  - 根目录顶级入口：`deploy_linux.sh` 与 `deploy_windows.bat`，以及根目录快捷运维脚本 (`./start.sh`, `./stop.sh`, `./status.sh`, `./restart.sh`)；
+  - 根目录顶级入口：`maintainwise.sh` 与 `maintainwise.bat`，以及简写别名 `mw.sh` 与 `mw.bat`；
   - `deploy/linux/`: `0_deploy_all.sh`, `1_init_env.sh`, `2_start_foreground.sh`, `start_background.sh`, `stop_background.sh`, `status.sh`, `restart_background.sh`, `3_install_service.sh`, `4_start_service.sh`, `5_stop_service.sh`, `6_uninstall_service.sh`, `7_backup_now.sh`, `README_LINUX.txt`；
   - `deploy/windows/`: `0_deploy_all.bat`, `1_init_env.bat`, `2_start_foreground.bat`, `3_install_service.bat`, `4_start_service.bat`, `5_stop_service.bat`, `6_uninstall_service.bat`, `7_backup_now.bat`, `winsw.xml`, `README_WINDOWS.txt`。
 * **验证方式**：分别在 Linux 与 Windows 环境执行双轨各编号脚本，服务均正常管理。
@@ -560,9 +560,9 @@
     - `deploy/linux/stop_background.sh`：基于 PID 与端口优雅平滑终止进程（SIGTERM 超时转 SIGKILL）并自动清理 PID 文件；
     - `deploy/linux/status.sh`：检测后台进程存活、PID、内存/CPU 开销、端口监听与最近日志输出；
     - `deploy/linux/restart_background.sh`：原子重启服务；
-    - 根目录提供友好快捷入口：`./start.sh`、`./stop.sh`、`./status.sh`、`./restart.sh`；
-  - 一键部署总脚本 `0_一键完整部署(Linux).sh` 首选项默认联动后台常驻守护启动，保障退出 shell 后业务稳定在线。
-* **验证方式**：执行 `./start.sh` 后退出当前 SSH 终端会话，重新连接后执行 `./status.sh` 断言 PID 与 8000 端口持续在线服务。
+    - 根目录统一命令行总控：`./maintainwise.sh <action>`（简写 `./mw.sh <action>`），支持 `deploy|start|stop|restart|status|logs|backup`；
+  - 一键部署总脚本 `0_deploy_all.sh` 首选项默认联动后台常驻守护启动，保障退出 shell 后业务稳定在线。
+* **验证方式**：执行 `./maintainwise.sh start` 后退出当前 SSH 终端会话，重新连接后执行 `./maintainwise.sh status` 断言 PID 与 8000 端口持续在线服务。
 
 ---
 
