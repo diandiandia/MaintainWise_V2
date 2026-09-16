@@ -408,6 +408,26 @@ pip install --no-index --find-links=.\wheels_cache -r requirements.txt
      ```
   3. 修复换行符后，运行 `.\maintainwise.bat deploy` 即可顺利初始化。
 
+### Q7：在 Windows (尤其是 ARM64 或 Python 3.13) 安装依赖时提示 `Building wheel for cryptography ... error: linker link.exe not found`？
+* **原因**：老版本依赖声明了 `python-jose[cryptography]`，而底层的 `cryptography` 是 C/Rust 编写的重型库。在 Windows ARM64（如 Mac 虚拟机）或极新 Python 版本下无官方预编译二进制轮子，导致 pip 尝试调用 MSVC `link.exe` 现场编译，因未安装 Visual Studio C++ 工具而报错。
+* **解决办法**：
+  1. MaintainWise 2.0 仅需标准 JWT 对称加密（HS256），底层已彻底平滑升级为现代轻量级纯 Python 依赖 **`pyjwt`**（零编译、仅 32 KB，在任何平台均免编译秒级安装）；
+  2. 若本地拷贝的代码依赖清单滞后，可在 PowerShell 窗口执行一行自动替换：
+     ```powershell
+     (Get-Content backend\requirements.txt) -replace "python-jose\[cryptography\].*", "pyjwt>=2.8.0" | Set-Content backend\requirements.txt
+     ```
+  3. 然后重新运行 `.\maintainwise.bat deploy` 即可秒装通过。
+
+### Q8：运行批处理脚本时弹出系统警告 `Windows cannot find 'Background'. Make sure you typed the name correctly...`？
+* **原因**：Windows 批处理中 `&` 符号是内置的命令连接符（类似于 Linux 的 `;`）。若在 `echo` 提示文本中使用了双引号外的 `Install & Start Background`，系统会把前半句作为打印，后半句当作执行系统的 `start` 命令，尝试启动名为 `Background.exe` 的程序，从而引发 Windows 系统弹窗报警。
+* **解决办法**：
+  1. 最新脚本中所有提示文本已将 `&` 全面替换为纯文字 `and`（如 `Install and Start`）；
+  2. 若本地文件尚未同步，可在 PowerShell 中执行一行替换：
+     ```powershell
+     (Get-Content deploy\windows\0_deploy_all.bat) -replace "Install & Start", "Install and Start" | Set-Content deploy\windows\0_deploy_all.bat
+     ```
+  3. 亦可直接在弹出的菜单中输入 `1`（前台测试）或执行 `.\maintainwise.bat test` 直接启动。
+
 ---
 
 > **技术支持与维护团队**：MaintainWise 智能工厂软件研发小组  

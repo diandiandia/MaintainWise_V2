@@ -549,10 +549,10 @@
 * **对应客户需求**：`CR-CON-001`, `CR-CON-003`
 * **所属系统层级**：依赖管理规范
 * **设计实现规范**：
-  `requirements.txt` 中严格挑选支持 Windows 官方 Wheel 轮子的成熟纯 Python 库：
+  `requirements.txt` 严格挑选纯 Python 或具备通用预编译二进制 Wheel 的基础库：
   `fastapi`, `uvicorn`, `pydantic`, `pydantic-settings`, `pyjwt`, `bcrypt`, `python-multipart`, `aiofiles`, `qrcode`, `pillow`；
-  杜绝任何需本地调用 MSVC/gcc 编译器的未知第三方扩展。
-* **验证方式**：在无 Visual Studio 编译环境的 Windows 机器上 `pip install` 顺利安装。
+  杜绝引入 `cryptography` 等需本地调用 MSVC `link.exe` 或 Rust `maturin` 编译器的重型依赖，确保在 Windows x64 与 ARM64（Mac 虚拟机）环境下 100% 免本地编译秒级安装。
+* **验证方式**：在无 Visual Studio 编译环境的 Windows x64/ARM64 机器上 `pip install` 顺利安装。
 
 ### SDR-DEP-003：Python pathlib.Path 路径中立性设计
 * **对应客户需求**：`CR-CON-001`
@@ -561,13 +561,14 @@
   全系统所有文件读写、目录创建、静态挂载强制采用 `pathlib.Path` 对象拼接（`BASE_DIR / "data" / "uploads"`），严禁用字符串手动硬编码 `/` 或 `\`。
 * **验证方式**：代码静态扫描无任何手工拼接操作系统专有斜杠行为。
 
-### SDR-DEP-004：Windows 批处理标准 CRLF 换行与 UTF-8 编码设计
+### SDR-DEP-004：Windows 批处理标准 CRLF 换行、符号安全与 UTF-8 编码设计
 * **对应客户需求**：`CR-CON-005`
 * **所属系统层级**：部署脚本工程规范
 * **设计实现规范**：
   `deploy/windows/*.bat` 及根目录 `maintainwise.bat`、`mw.bat`：
   - 文本换行符强制锁定为 `CRLF (\r\n)`；
   - 根目录配置 `.gitattributes`，声明 `*.bat text eol=crlf`，永久免疫跨操作系统拉取或虚拟机挂载导致的 LF 错位；
+  - 脚本所有 `echo` 提示文本严禁裸用 `&`（统一使用 `and`），杜绝 `cmd.exe` 误将文本识别为命令分隔符而触发系统 `start` 命令；
   - 脚本第一行统一声明：`@echo off` 与 `chcp 65001 >nul`；
   - 杜绝 Windows 命令提示符执行时出现乱码或因 LF 导致的 `cmd.exe` 指针偏移命令截断与跳转穿透。
 * **验证方式**：在中文版 Windows CMD / PowerShell 中执行，汉字清晰且命令正常流转。

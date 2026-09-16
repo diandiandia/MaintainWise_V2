@@ -596,10 +596,10 @@ flowchart TD
 * **对应客户需求**：`CR-CON-001` ~ `CR-CON-006`。
 * **关键裁决与落地措施**：
   1. **Windows 生产端零 Node.js / 零 Webpack 依赖**：前端所有 Vue 3、TypeScript、Element Plus 代码在 Linux 环境一次性构建打包为静态资源（`frontend/dist`），由 FastAPI 单端口统一宿主托管；
-  2. **零 C/C++ 本地编译依赖**：Python 依赖选用纯 Python 或官方预编译 Wheel，彻底避免在 Windows 上安装时报 Visual C++ 缺失错误；
+  2. **零 C/C++/Rust 本地编译依赖 (Pure Python / Pre-compiled Wheels)**：Python 依赖严格选用纯 Python（如 `pyjwt` 32KB 纯算法、`aiofiles`）或官方成熟预编译 Wheel（如 `bcrypt`、`pillow`），绝不引入 `cryptography` 等需本地调用 MSVC `link.exe` 或 Rust `maturin` 的重型依赖，彻底保证在 Windows x64 与 ARM64（如 M 系列 Mac 虚拟机）全架构下的免编译极速安装；
   3. **单文件 SQLite 3 WAL 架构**：零配置、零外部数据库服务安装，单文件拷贝即完整迁移；
   4. **路径中立性**：Python 代码全面使用 `pathlib.Path`，杜绝 Linux `/` 与 Windows `\` 路径分隔符差异；
-  5. **Windows 批处理防乱码与 CRLF 换行符保护**：所有 Windows `.bat` 脚本强制采用 **CRLF 换行**，首行声明 **`chcp 65001 >nul` (UTF-8)**，并通过根目录 [`.gitattributes`](file:///root/MaintainWise_V2/.gitattributes) 强制锁定 `*.bat text eol=crlf`，从根源杜绝跨平台检出或共享目录挂载时因 LF 导致的 `cmd.exe` 指针偏移命令截断与穿透；
+  5. **Windows 批处理防乱码、CRLF 保护与符号安全**：所有 Windows `.bat` 脚本强制采用 **CRLF 换行**，首行声明 **`chcp 65001 >nul` (UTF-8)**，并通过根目录 [`.gitattributes`](file:///root/MaintainWise_V2/.gitattributes) 强制锁定 `*.bat text eol=crlf`；脚本 `echo` 输出严禁使用裸 `&`（防止被 `cmd.exe` 识别为指令连接符而误触发系统 `start` 命令），彻底杜绝跨平台检出或虚拟机共享挂载时的解析异常；
   6. **Linux 后台持久守护 (setsid + 会话脱离)**：针对轻量容器或非 systemd 宿主，系统启动采用 `setsid` 独立会话与标准输入脱离机制，SIGHUP 免疫，用户关闭终端或断开 SSH 后台服务 100% 持续稳定运行；
   7. **统一命令行总控架构 (Unified CLI)**：根目录收敛为统一总控脚本 `maintainwise.sh` (Linux) 与 `maintainwise.bat` (Windows)。Linux 支持 `deploy/start/stop/restart/status/logs/backup` 参数化指令；Windows 额外支持直接鼠标双击弹出 0~7 交互式菜单与 `test` 前台交互测试启动，彻底根除根目录散乱脚本。
 

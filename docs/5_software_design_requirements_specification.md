@@ -367,6 +367,7 @@
 * **规范**：
   - 文件统一保存为标准 CRLF 换行，首行声明 `chcp 65001 >nul`；
   - 根目录 `.gitattributes` 明确声明 `*.bat text eol=crlf`，防止跨平台拉取时被转为单字节 LF 造成指令截断；
+  - 批处理脚本所有 `echo` 提示文本严禁使用裸露 `&`，统一使用 `and`，避免 `cmd.exe` 误当命令分隔符触发系统 `start` 命令；
   - `maintainwise.bat` 支持参数模式（`deploy|test|start|stop|restart|status|backup`）与双击 0~7 交互式菜单；
   - 原生支持 `test` 命令调用 `deploy/windows/2_start_foreground.bat` 进行前台交互调试。
 * **测试用例**：`test_spa_static_and_api_coexist()`
