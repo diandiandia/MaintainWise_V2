@@ -1,1 +1,1 @@
-maintainwise.bat
+@call "%~dp0maintainwise.bat" %*
