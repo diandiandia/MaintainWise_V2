@@ -174,6 +174,29 @@ def test_equipments_and_hierarchy_management():
     dev_check = client.get(f"/api/v1/equipments?search=超高速", headers=auth_header(eng_token))
     assert dev_check.json()[0]["factory"] == "储能动力第一智造厂"
 
+    # 测试工程师主动创建“工厂 - 部门 - 系统”三级架构节点 (即使尚无设备也能创建并挂载到树上)
+    new_hier_res = client.post("/api/v1/equipments/hierarchy", headers=auth_header(eng_token), json={
+        "factory": "未来概念第二分厂",
+        "department": "自动化无人车间",
+        "system_name": "AGV立体物流系统"
+    })
+    assert new_hier_res.status_code == 200
+    assert "成功创建架构层级" in new_hier_res.json()["message"]
+
+    # 验证架构树中成功展现新创建的层级节点（设备数为0）
+    updated_tree = client.get("/api/v1/equipments/hierarchy-tree", headers=auth_header(eng_token)).json()
+    new_node = next((n for n in updated_tree if n["name"] == "未来概念第二分厂"), None)
+    assert new_node is not None
+    assert new_node["count"] == 0
+    assert new_node["children"][0]["name"] == "自动化无人车间"
+    assert new_node["children"][0]["children"][0]["name"] == "AGV立体物流系统"
+
+    # 验证下拉选项接口包含该新建层级
+    options_res = client.get("/api/v1/equipments/hierarchy-options", headers=auth_header(eng_token)).json()
+    assert "未来概念第二分厂" in options_res["factories"]
+    assert "自动化无人车间" in options_res["departments"]
+    assert "AGV立体物流系统" in options_res["systems"]
+
 # ==========================================
 # 3. 技术员运行工时抄表与增量数学推算测试 (SWR-DEV-005)
 # ==========================================
@@ -379,6 +402,11 @@ def test_spa_static_and_api_coexist():
     assert route_res.status_code == 200
     assert "<!DOCTYPE html>" in route_res.text
 
+    # 测试首次登录强制改密专属独立页面直刷回退
+    force_res = client.get("/force-change-password")
+    assert force_res.status_code == 200
+    assert "<!DOCTYPE html>" in force_res.text
+
     # 测试 API 路由不受影响 (携带 Token 访问)
     token = get_token("admin", "password123")
     api_res = client.get("/api/v1/system/settings", headers=auth_header(token))
@@ -410,9 +438,8 @@ def test_password_security_and_freeze():
     assert login_res.json()["user"]["must_change_password"] is True
     tech_token = login_res.json()["access_token"]
     
-    # 用户首次强制修改密码
+    # 用户在专属独立页面提交新密码（无需重复输旧密码，直接设置新密码）
     chg_res = client.post("/api/v1/auth/change-password", headers=auth_header(tech_token), json={
-        "old_password": "initialPassword123",
         "new_password": "brandNewPassword456"
     })
     assert chg_res.status_code == 200

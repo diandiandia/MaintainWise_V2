@@ -22,6 +22,9 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
     description="MaintainWise 2.0 智能工厂设备在线化便利系统单端口微核心",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
     lifespan=lifespan
 )
 
@@ -65,6 +68,6 @@ async def spa_fallback(full_path: str):
             "version": settings.VERSION,
             "status": "online",
             "message": "MaintainWise 2.0 后端微核心运行中，前端尚未构建或处于 API 调试模式",
-            "api_docs": "/docs"
+            "api_docs": "/api/docs"
         }
     )

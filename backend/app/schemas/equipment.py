@@ -54,6 +54,11 @@ class EquipmentOut(EquipmentBase):
     updated_at: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
+class HierarchyCreateRequest(BaseModel):
+    factory: str = Field(..., min_length=1, description="工厂名称")
+    department: str = Field(..., min_length=1, description="部门/车间名称")
+    system_name: str = Field(..., min_length=1, description="系统/工段名称")
+
 class HierarchyRenameRequest(BaseModel):
     level: str = Field(..., pattern="^(factory|department|system_name)$")
     old_name: str

@@ -74,7 +74,8 @@ MaintainWise_V2/
 │   │   ├── stores/                  # Pinia 响应式状态管理 (user, app)
 │   │   └── views/                   # 业务功能视图页面
 │   │       ├── login/               # 登录视图
-│   │       ├── dashboard/           # 车间工作台大盘
+│   │       ├── auth/                # 首次登录强制改密独立安全视图 (ForceChangePasswordView)
+│   │       ├── dashboard/           # 车间工作台大盘 (数据平台)
 │   │       ├── equipments/          # 设备资产与层级管理视图
 │   │       ├── maintenance/         # 维保打卡与保养计划视图
 │   │       ├── workorders/          # 四态工单流转看板视图
@@ -280,6 +281,20 @@ CREATE TABLE IF NOT EXISTS system_settings (
 );
 ```
 
+### 2.9 用户自定义层级架构表 (`custom_hierarchies`)
+```sql
+CREATE TABLE IF NOT EXISTS custom_hierarchies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    factory VARCHAR(128) NOT NULL,
+    department VARCHAR(128) NOT NULL,
+    system_name VARCHAR(128) NOT NULL,
+    created_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(factory, department, system_name)
+);
+CREATE INDEX IF NOT EXISTS idx_custom_hierarchies ON custom_hierarchies(factory, department, system_name);
+```
+
 ---
 
 ## 第三部分：后端服务分层与核心模块设计
@@ -368,10 +383,13 @@ def create_system_backup(db_path: Path, uploads_path: Path, output_dir: Path):
   - 维保单打卡节点（蓝色）：展示各项检查结论与工程师留痕修正批注；
   - 工时抄表节点（灰色）：展示表盘读数与增量运行时间。
 
-### 4.3 工厂-部门-系统三级层级导航树组件 (`HierarchyTree.vue`)
-* 采用 `el-tree` 实现扁平三级数据的层级折叠；
-* 每个节点后附带数量小徽章；
-* 鼠标悬停展示【✏️ 重命名】与【+ 录入设备】图标，点击触发单事务批量修改对话框。
+### 4.3 工厂-部门-系统三级层级导航树与架构管理组件 (`HierarchyTree.vue` / `EquipmentListView.vue`)
+* 采用 `el-tree` 实现扁平三级数据的层级折叠，双源动态合并 `equipments` 与 `custom_hierarchies`；
+* 每个节点后附带数量小徽章，空层级友好显示为 `(0)`；
+* 树卡片顶部增加【+ 创建层级】入口，唤起专属层级架构创建弹窗；
+* 树节点悬浮操作：
+  - 悬浮提供【➕】快捷创建按钮：工厂节点点击快捷创建部门，部门节点点击快捷创建系统，系统节点点击一键打开带层级预填的录入设备对话框；
+  - 悬浮提供【✏️ 重命名】与【🗑️ 级联删除】操作，点击触发单事务批量修改/级联清理对话框。
 
 ---
 
@@ -381,7 +399,7 @@ def create_system_backup(db_path: Path, uploads_path: Path, output_dir: Path):
 | HTTP Method | 路径 | 权限要求 | 功能描述 | 请求载荷关键字段 | 成功响应 |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | `POST` | `/api/v1/auth/login` | 全员公开 | 用户登录认证与180天生命周期校验 | `username`, `password` | `{access_token, token_type, user}` |
-| `POST` | `/api/v1/auth/change-password` | 登录用户 | 主动/强制修改个人密码 | `old_password` (可选), `new_password` | `{"message": "密码修改成功"}` |
+| `POST` | `/api/v1/auth/change-password` | 登录用户 | 主动/强制修改个人密码 (成功后强制退出重登) | `old_password` (可选), `new_password` | `{"message": "密码修改成功"}` |
 | `GET` | `/api/v1/auth/me` | 登录用户 | 获取个人信息 | 无 | `{id, username, full_name, role}` |
 | `GET` | `/api/v1/users` | ADMIN | 查询人员列表 | `role`, `search`, `page`, `page_size` | `{total, items: [...]}` |
 | `POST` | `/api/v1/users` | ADMIN | 新增员工账号 | `username`, `full_name`, `role`, `password` | `{id, username, full_name, role}` |
@@ -392,10 +410,12 @@ def create_system_backup(db_path: Path, uploads_path: Path, output_dir: Path):
 | HTTP Method | 路径 | 权限要求 | 功能描述 | 请求载荷关键字段 | 成功响应 |
 | :--- | :--- | :---: | :--- | :--- | :--- |
 | `GET` | `/api/v1/equipments` | 登录用户 | 条件分页查询设备 | `search`, `factory`, `department`, `system_name` | `{total, items: [...]}` |
-| `GET` | `/api/v1/equipments/hierarchy-tree`| 登录用户 | 获取三级层级树 | 无 | `[{name, count, children: [...]}]` |
-| `POST` | `/api/v1/equipments/rename-hierarchy`| ADMIN/ENGINEER | 单事务批量更名 | `level`, `old_name`, `new_name` | `{"affected_rows": 15}` |
-| `POST` | `/api/v1/equipments/hierarchy-delete`| ADMIN/ENGINEER | 层级级联软删除 | `factory`, `department`, `system_name`, `cascade` | `{"deleted_equipments": 8}` |
-| `POST` | `/api/v1/equipments` | ENGINEER | 新增设备台账 | `equipment_name`, `model_spec`, `running_mode`... | `{id, equipment_code, qr_code_url}` |
+| `GET` | `/api/v1/equipments/hierarchy-tree`| 登录用户 | 获取三级双源合并层级树 | 无 | `[{name, count, children: [...]}]` |
+| `GET` | `/api/v1/equipments/hierarchy-options`| 登录用户 | 获取工厂/部门/系统三级去重选项 | 无 | `{factories: [...], departments: [...], systems: [...]}` |
+| `POST` | `/api/v1/equipments/hierarchy`| ENGINEER | 用户自主预先创建层级架构 | `factory`, `department` (选填), `system_name` (选填) | `{"id": 1, "factory": "...", "department": "...", "system_name": "..."}` |
+| `POST` | `/api/v1/equipments/rename-hierarchy`| ADMIN/ENGINEER | 单事务批量更名 (同步架构表) | `level`, `old_name`, `new_name` | `{"affected_rows": 15}` |
+| `POST` | `/api/v1/equipments/hierarchy-delete`| ADMIN/ENGINEER | 层级级联软删除 (同步架构表) | `factory`, `department`, `system_name`, `cascade` | `{"deleted_equipments": 8}` |
+| `POST` | `/api/v1/equipments` | ENGINEER | 新增设备台账 (自动同步架构表) | `equipment_name`, `model_spec`, `running_mode`... | `{id, equipment_code, qr_code_url}` |
 | `POST` | `/api/v1/equipments/{id}/runtime-logs`| 全员登录 | 双模抄表录入工时 | `reading_hours` / `delta_hours`, `remark` | `{id, delta_hours, total_hours}` |
 | `GET` | `/api/v1/equipments/{id}/timeline` | 登录用户 | 后来人终身病历 | 无 | `[{event_type, event_time, details}]` |
 
@@ -494,6 +514,20 @@ WantedBy=multi-user.target
   <env name="PYTHONPATH" value="%BASE%\..\..\backend"/>
 </service>
 ```
+
+### 7.3 Linux 容器与无 Systemd 环境后台常驻守护套件
+在缺少 systemd 的 Docker 容器或轻量级 Linux 终端下，直接后台执行易受终端注销 SIGHUP 信号影响中断。系统设计了高可靠的解耦常驻机制：
+* **核心运行命令**：
+  ```bash
+  setsid python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 < /dev/null >> logs/maintainwise.log 2>&1 &
+  echo $! > maintainwise.pid
+  ```
+* **运维脚本体系**：
+  1. `deploy/linux/start_background.sh`：检测端口与 PID 文件，启动 setsid 后台守护并做 10 秒健康探测；
+  2. `deploy/linux/stop_background.sh`：读取 PID 发送 SIGTERM，超时 10 秒升级为 SIGKILL，自动释放 8000 端口并删除 PID 文件；
+  3. `deploy/linux/status.sh`：检查运行状态、PID、CPU/MEM 内存占用、端口监听并截取最后 15 行日志；
+  4. `deploy/linux/restart_background.sh`：原子平滑重启；
+  5. 根目录快捷命令：`./start.sh`、`./stop.sh`、`./status.sh`、`./restart.sh`，赋予执行权限，极大提升现场运维便捷性。
 
 ---
 

@@ -76,8 +76,14 @@ async function handleLogin() {
       user.password_expiring_soon = password_expiring_soon
       user.days_remaining = days_remaining
       userStore.setLogin(access_token, user)
-      ElMessage.success(`欢迎回来，${user.full_name}`)
-      router.push('/dashboard')
+      
+      if (user.must_change_password) {
+        ElMessage.warning('安全提醒：首次登录或密码已被重置，请先设定新密码')
+        router.push('/force-change-password')
+      } else {
+        ElMessage.success(`欢迎回来，${user.full_name}`)
+        router.push('/dashboard')
+      }
     } catch (e) {
       // 错误已被拦截器提示
     } finally {

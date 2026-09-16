@@ -101,7 +101,7 @@
   用户删除操作执行 `UPDATE users SET is_active = 0 WHERE id = :id`，严禁物理执行 `DELETE FROM users`。已停用账号禁止登录，但其历史签署的单据在病历中完整展示历史姓名。
 * **验证方式**：停用账号后发起登录提示失败，查看历史工单显示原处理人信息完好。
 
-### SDR-USR-007：180天密码强制轮换与超期自动冻结保护设计
+### SDR-USR-007：180天密码强制轮换、独立改密隔离与修改后强制重新登录设计
 * **对应客户需求**：`CR-USR-006`
 * **所属系统层级**：安全鉴权微核心 / 前端全局拦截
 * **设计实现规范**：
@@ -110,9 +110,10 @@
     1. 计算 $\Delta D = \text{now}() - \text{password\_updated\_at}$；
     2. 若 $\Delta D > 180$，置 `is_frozen = 1` 并返回 HTTP 403 抛出异常；
     3. 若 $177 \le \Delta D \le 180$（临期 3 天内），登录响应中下发 `password_expiring_soon = true` 及剩余天数；前端顶栏弹出黄色提醒 Banner；
-    4. 若 `must_change_password = 1`，前端触发不可关闭的阻断式改密对话框，强制用户设置 $\ge 6$ 位新密码；
-    5. 管理员专属重置密码与解冻接口：`POST /api/v1/users/{id}/reset-password` 与 `POST /api/v1/users/{id}/unfreeze`。
-* **验证方式**：修改模拟过期时间，验证登录时自动锁定且阻断访问；测试修改密码后 `password_updated_at` 刷新且冻结解除。
+    4. 若 `must_change_password = 1`，前端路由守卫强制跳转至专属独立的改密隔离页面（`/force-change-password`，独立全屏容器，彻底阻断主布局与背景数据大盘的加载），强制用户设置 $\ge 6$ 位新密码；
+    5. 密码修改成功（`POST /api/v1/auth/change-password`）后，系统立即触发前端全量注销（`userStore.logout()`），清空本地 Token 与缓存，并自动重定向跳转回登录界面（`/login`），强制要求用户使用新设密码重新鉴权方可重新签发新 Token 进入系统；
+    6. 管理员专属重置密码与解冻接口：`POST /api/v1/users/{id}/reset-password` 与 `POST /api/v1/users/{id}/unfreeze`。
+* **验证方式**：修改模拟过期时间，验证登录时自动锁定且阻断访问；测试首次登录强制跳转独立隔离页面修改密码，修改成功后自动退出并要求新密码登录。
 
 ---
 
@@ -247,6 +248,20 @@
   - 若 `cascade_delete_equipments == True`，单事务中将该层级下所有设备的 `is_deleted` 置为 1，并软删除未完工关联工单；
   - 历史病历完整保留外键，前台通过弹窗提示影响设备数量并强制用户二次确认。
 * **验证方式**：级联删除测试层级，断言该层级下所有设备均标记软删除且在活动列表中不可见。
+
+### SDR-DEV-013：用户主动预先创建层级与聚合树双源合并设计
+* **对应客户需求**：`CR-DEV-013`
+* **所属系统层级**：数据持久化层 / 资产管理 API / 前端交互树
+* **设计实现规范**：
+  - 持久化层引入 `custom_hierarchies` 表：包含 `id`, `factory`, `department`, `system_name`, `created_by`, `created_at`，加 `UNIQUE(factory, department, system_name)` 联合唯一约束；
+  - 架构创建接口：`POST /api/v1/equipments/hierarchy`（`require_engineer`）：
+    - 支持用户按需主动预先搭建工厂、部门与系统；
+    - 支持三种创建粒度：仅工厂（部门与系统自动落默认占位或由用户选定）、工厂+部门、工厂+部门+系统；
+  - 选项补全接口：`GET /api/v1/equipments/hierarchy-options`：向前端设备录入弹窗与全局筛选器下发全厂所有工厂、部门、系统三级扁平去重列表；
+  - 双源聚合树：`GET /api/v1/equipments/hierarchy-tree` 联合 `equipments` 表与 `custom_hierarchies` 表执行动态 UNION 聚合去重；对于暂无设备的空层级，设备计数徽标如实展示为 `(0)`；
+  - 前端交互：层级树顶栏提供【+ 创建层级】入口，树节点悬浮快捷【➕】操作（工厂节点点击快捷创建部门，部门节点点击快捷创建系统，系统节点点击一键打开带层级预填的录入设备对话框）；
+  - 单事务级联同步：当调用 `rename-hierarchy` 或 `hierarchy-delete` 时，单事务中同步更新或级联软删除 `custom_hierarchies` 对应记录；新增设备时自动反向同步登记至 `custom_hierarchies`。
+* **验证方式**：调用接口或前台弹窗创建无设备的系统层级，树中立即渲染该系统且计数为 0；在录入设备表单中可从下拉框选出该层级，录入设备后计数即时更新为 1。
 
 ---
 
@@ -533,6 +548,22 @@
   - `deploy/windows/`: `0_一键完整部署(Windows).bat`, `1_一键环境初始化.bat`, `2_前台测试启动.bat`, `3_安装Windows服务.bat`, `4_启动服务.bat`, `5_停止服务.bat`, `6_卸载Windows服务.bat`, `7_立即执行备份.bat`, `winsw.xml`。
 * **验证方式**：分别在 Linux 与 Windows 环境执行双轨各编号脚本，服务均正常管理。
 
+### SDR-DEP-006：Linux 进程级后台常驻守护与脱离控制终端运行设计
+* **对应客户需求**：`CR-CON-006`
+* **所属系统层级**：运维工具包工程 / 容器化与轻量化部署
+* **设计实现规范**：
+  - 在无 Systemd 守护进程支持的轻量级 Linux 容器环境（如 Docker、Kubernetes 容器或无 init 进程环境）中，避免使用容易因终端断开而挂起的裸 `nohup ... &`；
+  - 采用 `setsid python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 < /dev/null >> logs/maintainwise.log 2>&1 &` 启动后台进程，通过重定向标准输入脱离 tty，并独立分配 Session ID，免疫会话断开产生的 `SIGHUP` 信号；
+  - 自动化记录进程标识符至 `maintainwise.pid`；
+  - 配套标准控制脚本：
+    - `deploy/linux/start_background.sh`：启动后台守护并校验健康心跳；
+    - `deploy/linux/stop_background.sh`：基于 PID 与端口优雅平滑终止进程（SIGTERM 超时转 SIGKILL）并自动清理 PID 文件；
+    - `deploy/linux/status.sh`：检测后台进程存活、PID、内存/CPU 开销、端口监听与最近日志输出；
+    - `deploy/linux/restart_background.sh`：原子重启服务；
+    - 根目录提供友好快捷入口：`./start.sh`、`./stop.sh`、`./status.sh`、`./restart.sh`；
+  - 一键部署总脚本 `0_一键完整部署(Linux).sh` 首选项默认联动后台常驻守护启动，保障退出 shell 后业务稳定在线。
+* **验证方式**：执行 `./start.sh` 后退出当前 SSH 终端会话，重新连接后执行 `./status.sh` 断言 PID 与 8000 端口持续在线服务。
+
 ---
 
 ## 第九部分：客户需求与系统设计需求双向跟踪矩阵 (Traceability Matrix)
@@ -544,7 +575,7 @@
 | **CR-USR-003** | 工程师业务中枢管控权 | `SDR-USR-005`, `SDR-DEV-005`, `SDR-MNT-004`| 工程师独占设备管理、修改维护单与验收权限 | 100% 覆盖 |
 | **CR-USR-004** | 技术员现场执行权 | `SDR-USR-005`, `SDR-DEV-006`, `SDR-MNT-002`| 现场打卡、工时抄表与极速报修 | 100% 覆盖 |
 | **CR-USR-005** | 8小时长效会话 | `SDR-USR-003` | JWT 480 分钟有效令牌与 Axios 拦截器 | 100% 覆盖 |
-| **CR-USR-006** | 180天密码轮换与超期冻结 | `SDR-USR-007` | 180天密码周期审计、临期3天Banner、超期自动冻结与首次强制改密 | 100% 覆盖 |
+| **CR-USR-006** | 180天密码轮换与安全改密 | `SDR-USR-007` | 180天周期审计、超期冻结、独立隔离改密页与修改后强制退出重登 | 100% 覆盖 |
 | **CR-DEV-001** | 工厂-部门-系统三级划分 | `SDR-DEV-001` | 扁平三级字段存储与毫秒级动态聚合树 | 100% 覆盖 |
 | **CR-DEV-002** | 设备字段刚柔兼顾 | `SDR-DEV-002` | 名称与规格强制非空，数量默认1，参数可选 | 100% 覆盖 |
 | **CR-DEV-003** | 设备编码非强制项 | `SDR-DEV-003` | 编码选填，未填后台自动生成 DEV-唯一码 | 100% 覆盖 |
@@ -557,6 +588,7 @@
 | **CR-DEV-010** | 一机一码二维码自动生成 | `SDR-DEV-010` | 自动生成二维码图片并支持前端预览与导出 | 100% 覆盖 |
 | **CR-DEV-011** | 间歇与持续双模维护预测 | `SDR-DEV-011` | 持续/间歇双模，自适应预警小时，14天滑动预测剩余天数 | 100% 覆盖 |
 | **CR-DEV-012** | 层级级联软删除与资产防护 | `SDR-DEV-012` | 厂部系统级联软删除子设备与未完工单，杜绝孤儿数据 | 100% 覆盖 |
+| **CR-DEV-013** | 用户主动创建三级层级 | `SDR-DEV-013` | 自定义层级持久化表、独立创建与树形双源合并、空层级挂载设备 | 100% 覆盖 |
 | **CR-MNT-001** | 工程师编制下发维保计划 | `SDR-MNT-001` | 周期天数+SOP检查清单，下次应保日期自动推算 | 100% 覆盖 |
 | **CR-MNT-002** | 技术员现场打卡 | `SDR-MNT-002` | 逐项合格/异常勾选，异常必须录入异常描述 | 100% 覆盖 |
 | **CR-MNT-003** | 维护单上传即锁定只读防篡改 | `SDR-MNT-003` | 上传置 `is_locked_for_tech=1`，技术员修改报 403 | 100% 覆盖 |
@@ -582,3 +614,4 @@
 | **CR-CON-003** | Windows 生产端零 Node 依赖 | `SDR-DEP-001`, `SDR-DEP-002` | 前端预编译静态托管，生产端仅需 Python 运行时 | 100% 覆盖 |
 | **CR-CON-004** | 单端口全栈交付 (:8000) | `SDR-DEP-001` | 单端口托管 SPA + RESTful API + 多媒体 | 100% 覆盖 |
 | **CR-CON-005** | Windows 批处理 CRLF 与 UTF-8 | `SDR-DEP-004` | CRLF 换行 + chcp 65001 >nul，杜绝乱码 | 100% 覆盖 |
+| **CR-CON-006** | Linux后台常驻守护与控制套件 | `SDR-DEP-006` | setsid脱离终端会话、PID锁、start/stop/status/restart全套脚本 | 100% 覆盖 |

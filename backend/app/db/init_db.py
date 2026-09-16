@@ -51,6 +51,17 @@ CREATE INDEX IF NOT EXISTS idx_equipments_name ON equipments(equipment_name);
 CREATE INDEX IF NOT EXISTS idx_equipments_hierarchy ON equipments(factory, department, system_name);
 CREATE INDEX IF NOT EXISTS idx_equipments_status ON equipments(status);
 
+-- 2.1 用户自定义工厂-部门-系统架构树
+CREATE TABLE IF NOT EXISTS custom_hierarchies (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    factory VARCHAR(128) NOT NULL,
+    department VARCHAR(128) NOT NULL,
+    system_name VARCHAR(128) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(factory, department, system_name)
+);
+CREATE INDEX IF NOT EXISTS idx_custom_hierarchies_fac ON custom_hierarchies(factory, department, system_name);
+
 -- 3. 设备运行工时流水表
 CREATE TABLE IF NOT EXISTS equipment_runtime_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

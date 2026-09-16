@@ -164,7 +164,7 @@ def get_dashboard_data(
         "overdue_count": overdue_cnt,
         "warning_count": warning_cnt,
         "healthy_count": healthy_cnt,
-        "urgent_items": urgent_candidates[:20]
+        "urgent_items": urgent_candidates[:50]
     }
     
     # 将维护倒计时告警推送到待办提醒

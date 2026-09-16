@@ -7,7 +7,7 @@ from app.core.deps import get_current_user, require_engineer
 from app.db.session import get_db
 from app.schemas.equipment import (
     EquipmentCreate, EquipmentUpdate, EquipmentOut,
-    HierarchyRenameRequest, HierarchyDeleteRequest, HierarchyDeletePreviewOut,
+    HierarchyCreateRequest, HierarchyRenameRequest, HierarchyDeleteRequest, HierarchyDeletePreviewOut,
     RuntimeLogCreate, RuntimeLogOut
 )
 from app.schemas.knowledge import TimelineItem
@@ -116,8 +116,31 @@ def get_hierarchy_tree(
 ):
     """
     获取“工厂 - 部门 - 系统”三级层级树结构及各节点挂载设备数
+    （聚合 equipments 设备表与 custom_hierarchies 自定义架构表）
     """
     cursor = db.cursor()
+    
+    # 1. 查询所有自定义或预置架构
+    cursor.execute("""
+        SELECT factory, department, system_name
+        FROM custom_hierarchies
+        ORDER BY factory, department, system_name
+    """)
+    ch_rows = cursor.fetchall()
+    
+    tree = {}
+    for r in ch_rows:
+        fac = r["factory"]
+        dept = r["department"]
+        sys = r["system_name"]
+        if fac not in tree:
+            tree[fac] = {"count": 0, "departments": {}}
+        if dept not in tree[fac]["departments"]:
+            tree[fac]["departments"][dept] = {"count": 0, "systems": {}}
+        if sys not in tree[fac]["departments"][dept]["systems"]:
+            tree[fac]["departments"][dept]["systems"][sys] = 0
+
+    # 2. 统计各层级挂载的有效设备数
     cursor.execute("""
         SELECT factory, department, system_name, COUNT(id) as count
         FROM equipments
@@ -127,8 +150,6 @@ def get_hierarchy_tree(
     """)
     rows = cursor.fetchall()
     
-    # 动态构建三级嵌套树
-    tree = {}
     for r in rows:
         fac = r["factory"]
         dept = r["department"]
@@ -183,6 +204,77 @@ def get_hierarchy_tree(
         
     return result
 
+@router.post("/hierarchy")
+def create_hierarchy(
+    req: HierarchyCreateRequest,
+    db: sqlite3.Connection = Depends(get_db),
+    engineer: dict = Depends(require_engineer)
+):
+    """
+    工程师主动创建“工厂 - 部门 - 系统”层级节点：
+    支持在未录入具体设备前，预先规划或新建工厂、部门、系统架构
+    """
+    fac = req.factory.strip()
+    dept = req.department.strip()
+    sys = req.system_name.strip()
+    if not fac or not dept or not sys:
+        raise HTTPException(status_code=400, detail="工厂、部门和系统名称均不能为空")
+        
+    cursor = db.cursor()
+    cursor.execute("""
+        INSERT OR IGNORE INTO custom_hierarchies (factory, department, system_name)
+        VALUES (?, ?, ?)
+    """, (fac, dept, sys))
+    db.commit()
+    return {
+        "message": f"成功创建架构层级：{fac} / {dept} / {sys}",
+        "factory": fac,
+        "department": dept,
+        "system_name": sys
+    }
+
+@router.get("/hierarchy-options")
+def get_hierarchy_options(
+    db: sqlite3.Connection = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    获取全部已有工厂、部门、系统名称列表（供新建设备或新建层级下拉智能补全）
+    """
+    cursor = db.cursor()
+    cursor.execute("""
+        SELECT DISTINCT factory FROM (
+            SELECT factory FROM equipments WHERE is_deleted = 0
+            UNION
+            SELECT factory FROM custom_hierarchies
+        ) WHERE factory IS NOT NULL AND factory != '' ORDER BY factory
+    """)
+    factories = [r[0] for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT DISTINCT department FROM (
+            SELECT department FROM equipments WHERE is_deleted = 0
+            UNION
+            SELECT department FROM custom_hierarchies
+        ) WHERE department IS NOT NULL AND department != '' ORDER BY department
+    """)
+    departments = [r[0] for r in cursor.fetchall()]
+
+    cursor.execute("""
+        SELECT DISTINCT system_name FROM (
+            SELECT system_name FROM equipments WHERE is_deleted = 0
+            UNION
+            SELECT system_name FROM custom_hierarchies
+        ) WHERE system_name IS NOT NULL AND system_name != '' ORDER BY system_name
+    """)
+    systems = [r[0] for r in cursor.fetchall()]
+
+    return {
+        "factories": factories,
+        "departments": departments,
+        "systems": systems
+    }
+
 @router.post("/rename-hierarchy")
 def rename_hierarchy(
     req: HierarchyRenameRequest,
@@ -191,7 +283,7 @@ def rename_hierarchy(
 ):
     """
     工厂/部门/系统层级多次任意重命名：
-    在单个数据库原子事务中，批量同步更新关联设备，历史维修病历完好保留
+    在单个数据库原子事务中，批量同步更新关联设备及自定义架构表，历史维修病历完好保留
     """
     col_map = {
         "factory": "factory",
@@ -205,6 +297,14 @@ def rename_hierarchy(
         (req.new_name.strip(), req.old_name.strip())
     )
     affected = cursor.rowcount
+    cursor.execute(
+        f"UPDATE OR IGNORE custom_hierarchies SET {col} = ? WHERE {col} = ?",
+        (req.new_name.strip(), req.old_name.strip())
+    )
+    cursor.execute(
+        f"DELETE FROM custom_hierarchies WHERE {col} = ?",
+        (req.old_name.strip(),)
+    )
     db.commit()
     return {
         "message": f"层级重命名成功，已原子同步 {affected} 台从属设备",
@@ -321,6 +421,26 @@ def delete_hierarchy(
     where_sql = " AND ".join(where_clauses)
     cursor.execute(f"UPDATE equipments SET is_deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE {where_sql}", params)
     affected = cursor.rowcount
+
+    # 同步从自定义架构表中移除
+    if req.level == "factory":
+        cursor.execute("DELETE FROM custom_hierarchies WHERE factory = ?", (req.name.strip(),))
+    elif req.level == "department":
+        if req.factory:
+            cursor.execute("DELETE FROM custom_hierarchies WHERE factory = ? AND department = ?", (req.factory.strip(), req.name.strip()))
+        else:
+            cursor.execute("DELETE FROM custom_hierarchies WHERE department = ?", (req.name.strip(),))
+    elif req.level == "system_name":
+        del_wh = ["system_name = ?"]
+        del_p = [req.name.strip()]
+        if req.factory:
+            del_wh.append("factory = ?")
+            del_p.append(req.factory.strip())
+        if req.department:
+            del_wh.append("department = ?")
+            del_p.append(req.department.strip())
+        cursor.execute(f"DELETE FROM custom_hierarchies WHERE {' AND '.join(del_wh)}", del_p)
+
     db.commit()
     
     level_cn = {"factory": "工厂", "department": "车间部门", "system_name": "系统/工段"}.get(req.level, "层级")
@@ -392,11 +512,16 @@ def create_equipment(
                 req.status or "RUNNING"
             )
         )
+        dev_id = cursor.lastrowid
+
+        # 自动同步记录层级架构至 custom_hierarchies
+        cursor.execute("""
+            INSERT OR IGNORE INTO custom_hierarchies (factory, department, system_name)
+            VALUES (?, ?, ?)
+        """, (req.factory.strip(), req.department.strip(), req.system_name.strip()))
         db.commit()
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=400, detail=f"设备编号 [{code}] 已存在，请使用其他编号")
-        
-    dev_id = cursor.lastrowid
     
     # 自动生成一机一码高清二维码
     qr_url = generate_equipment_qr(dev_id)

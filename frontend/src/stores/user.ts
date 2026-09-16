@@ -40,6 +40,14 @@ export const useUserStore = defineStore('user', () => {
     localStorage.removeItem('maintainwise_user')
   }
 
+  function updatePasswordChanged() {
+    if (user.value) {
+      user.value.must_change_password = false
+      user.value.password_expiring_soon = false
+      localStorage.setItem('maintainwise_user', JSON.stringify(user.value))
+    }
+  }
+
   return {
     token,
     user,
@@ -49,6 +57,7 @@ export const useUserStore = defineStore('user', () => {
     isEngineer,
     isTechnician,
     setLogin,
-    logout
+    logout,
+    updatePasswordChanged
   }
 })

@@ -85,15 +85,17 @@
 * **逻辑**：执行 `UPDATE users SET is_active = 0 WHERE id = :id`。已停用人员在工单经办人历史中仍可正常查阅。
 * **测试用例**：`test_user_soft_delete()`
 
-### SWR-USR-006：180天密码生命周期审计与账户冻结接口
+### SWR-USR-006：180天密码周期审计、独立安全改密隔离与修改后强制重新登录
 * **上游追溯**：`SDR-USR-007`, `CR-USR-006`
-* **实现定位**：`backend/app/api/v1/endpoints/auth.py` & `users.py`
-* **逻辑**：
+* **实现定位**：`backend/app/api/v1/endpoints/auth.py`、`users.py`、`frontend/src/views/auth/ForceChangePasswordView.vue`
+* **逻辑与异常**：
   - 登录校验 `password_updated_at`；若超出 180 天，置 `is_frozen = 1` 并返回 HTTP 403；
   - 临期 3 天返回 `password_expiring_soon = True`；
+  - 若 `must_change_password = 1`，前端路由拦截强制导向独立全屏改密视图（`/force-change-password`），该视图不加载任何系统大盘与内部导航，杜绝未授权数据窥视；
   - 接口 `POST /api/v1/auth/change-password` 更新哈希与 `password_updated_at = CURRENT_TIMESTAMP`，清除 `must_change_password`；
+  - 密码修改成功响应后，前端立即强制调用 `userStore.logout()` 清除本地 Token 与会话信息，并自动重定向至 `/login` 登录页，强制要求用户使用新密码重新鉴权；
   - 接口 `POST /api/v1/users/{id}/unfreeze`（ADMIN）解冻账户并重置密码基线。
-* **测试用例**：`test_180_day_password_lifecycle_and_freeze()`
+* **测试用例**：`test_180_day_password_lifecycle_and_freeze()`, `test_spa_force_change_password_route()`
 
 ---
 
@@ -157,6 +159,20 @@
 * **权限守卫**：`Depends(require_engineer)`
 * **逻辑**：接收 `factory`, `department`, `system_name`, `cascade_delete_equipments`；单事务级联软删除所有子设备及关联活动工单。
 * **测试用例**：`test_hierarchy_cascade_delete()`
+
+### SWR-DEV-008：用户主动预先创建层级与架构选项查询接口
+* **上游追溯**：`SDR-DEV-013`, `CR-DEV-013`
+* **实现定位**：`backend/app/api/v1/endpoints/equipments.py` (`POST /hierarchy`, `GET /hierarchy-options`, `GET /hierarchy-tree`)
+* **权限守卫**：`POST /hierarchy` 挂载 `Depends(require_engineer)`；查询接口面向全员登录用户
+* **输入契约**：
+  - `POST /api/v1/equipments/hierarchy`: `HierarchyCreate(factory: str, department: Optional[str] = "", system_name: Optional[str] = "")`
+* **逻辑契约**：
+  - 接口校验 `factory` 非空，未填 `department` 自动补全为 `"默认部门"`，未填 `system_name` 自动补全为 `"默认系统"`；
+  - 写入 `custom_hierarchies` 表（`INSERT OR IGNORE INTO custom_hierarchies ...`）；
+  - `GET /api/v1/equipments/hierarchy-options` 返回全厂工厂、部门、系统三级扁平去重列表；
+  - `GET /api/v1/equipments/hierarchy-tree` 动态合并 `equipments` (is_deleted=0) 与 `custom_hierarchies`，空层级节点设备计数返回 0；
+  - 层级更名与级联删除时单事务原子同步更新 `custom_hierarchies`，新增设备自动反向登记入表。
+* **测试用例**：`test_custom_hierarchy_creation_and_options()`
 
 ---
 
@@ -315,7 +331,17 @@
 * **上游追溯**：`SDR-DEP-004`, `CR-CON-005`
 * **实现定位**：`deploy/windows/*.bat` 及根目录 `一键部署_Windows.bat`
 * **规范**：文件统一保存为标准 CRLF 换行，首行声明 `chcp 65001 >nul`。
-* **测试用例**：`test_windows_batch_encoding()`
+* **测试用例**：`test_spa_static_and_api_coexist()`
+
+### SWR-DEP-004：Linux 容器环境进程脱离常驻与运维控制套件
+* **上游追溯**：`SDR-DEP-006`, `CR-CON-006`
+* **实现定位**：`deploy/linux/start_background.sh`、`stop_background.sh`、`status.sh`、`restart_background.sh`、根目录软链接/快捷脚本 (`./start.sh`, `./stop.sh`, `./status.sh`, `./restart.sh`)
+* **规范**：
+  - 针对无 systemd 环境，启动命令使用 `setsid python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000 < /dev/null >> logs/maintainwise.log 2>&1 &`；
+  - 启动后将 PID 写入 `maintainwise.pid`；
+  - 停止脚本支持基于 PID 发送 SIGTERM，10秒超时后发送 SIGKILL，并释放端口删除 PID 文件；
+  - 状态脚本可快速输出存活状态、PID、CPU/MEM 内存占用、端口监听以及最后 15 行日志输出。
+* **测试用例**：`test_spa_static_and_api_coexist()`
 
 ---
 
@@ -324,33 +350,38 @@
 | 客户需求编号 (CR) | 系统设计需求编号 (SDR) | 软件设计需求编号 (SWR) | 负责源代码文件 | 对应自动化测试函数 |
 | :--- | :--- | :--- | :--- | :--- |
 | **CR-USR-001** | `SDR-USR-001`, `SDR-USR-005` | **SWR-USR-004** | `backend/app/core/deps.py` | `test_login_and_roles` |
-| **CR-USR-002** | `SDR-USR-002`, `SDR-USR-004` | **SWR-USR-002**, **SWR-USR-003** | `backend/app/api/v1/endpoints/users.py` | `test_login_and_roles` |
+| **CR-USR-002** | `SDR-USR-002`, `SDR-USR-004` | **SWR-USR-002**, **SWR-USR-003** | `backend/app/api/v1/endpoints/users.py` | `test_user_management_and_password_reset` |
 | **CR-USR-005** | `SDR-USR-003` | **SWR-USR-001** | `backend/app/core/security.py` | `test_login_and_roles` |
-| **CR-USR-006** | `SDR-USR-007` | **SWR-USR-006** | `backend/app/api/v1/endpoints/auth.py` | `test_180_day_password_lifecycle_and_freeze` |
+| **CR-USR-006** | `SDR-USR-007` | **SWR-USR-006** | `backend/app/api/v1/endpoints/auth.py`, `frontend/src/views/auth/ForceChangePasswordView.vue` | `test_password_security_and_freeze` |
 | **CR-DEV-001** | `SDR-DEV-001` | **SWR-DEV-002** | `backend/app/api/v1/endpoints/equipments.py` | `test_equipments_and_hierarchy_management` |
 | **CR-DEV-002** | `SDR-DEV-002` | **SWR-DEV-001** | `backend/app/schemas/equipment.py` | `test_equipments_and_hierarchy_management` |
 | **CR-DEV-003** | `SDR-DEV-003` | **SWR-DEV-001** | `backend/app/api/v1/endpoints/equipments.py` | `test_equipments_and_hierarchy_management` |
 | **CR-DEV-004** | `SDR-DEV-004` | **SWR-DEV-004** | `backend/app/api/v1/endpoints/equipments.py` | `test_equipments_and_hierarchy_management` |
 | **CR-DEV-006** | `SDR-DEV-006` | **SWR-DEV-005** | `backend/app/api/v1/endpoints/equipments.py` | `test_technician_runtime_log` |
 | **CR-DEV-008** | `SDR-DEV-008` | **SWR-DEV-003** | `backend/app/api/v1/endpoints/equipments.py` | `test_equipments_and_hierarchy_management` |
-| **CR-DEV-011** | `SDR-DEV-011` | **SWR-DEV-006** | `backend/app/api/v1/endpoints/equipments.py` | `test_dual_mode_maintenance_countdown` |
-| **CR-DEV-012** | `SDR-DEV-012` | **SWR-DEV-007** | `backend/app/api/v1/endpoints/equipments.py` | `test_hierarchy_cascade_delete` |
-| **CR-MNT-001** | `SDR-MNT-001` | **SWR-MNT-001** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_plans` |
+| **CR-DEV-011** | `SDR-DEV-011` | **SWR-DEV-006** | `backend/app/api/v1/endpoints/equipments.py` | `test_intermittent_equipment_and_countdown_lifecycle` |
+| **CR-DEV-012** | `SDR-DEV-012` | **SWR-DEV-007** | `backend/app/api/v1/endpoints/equipments.py` | `test_hierarchy_delete_and_historical_integrity` |
+| **CR-DEV-013** | `SDR-DEV-013` | **SWR-DEV-008** | `backend/app/api/v1/endpoints/equipments.py`, `frontend/src/views/equipments/EquipmentListView.vue` | `test_equipments_and_hierarchy_management` |
+| **CR-MNT-001** | `SDR-MNT-001` | **SWR-MNT-001** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
 | **CR-MNT-003** | `SDR-MNT-003` | **SWR-MNT-001** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
 | **CR-MNT-004** | `SDR-MNT-004` | **SWR-MNT-002** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
 | **CR-MNT-005** | `SDR-MNT-005` | **SWR-MNT-003** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
-| **CR-MNT-006** | `SDR-MNT-006` | **SWR-MNT-004** | `backend/app/api/v1/endpoints/maintenance.py` | `test_dynamic_sop_and_runtime_reset` |
+| **CR-MNT-006** | `SDR-MNT-006` | **SWR-MNT-004** | `backend/app/api/v1/endpoints/maintenance.py` | `test_maintenance_submit_lock_and_engineer_revise` |
 | **CR-WO-001** | `SDR-WO-001` | **SWR-WO-001** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-WO-002** | `SDR-WO-002` | **SWR-WO-002** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-WO-004** | `SDR-WO-004` | **SWR-WO-003** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-WO-005** | `SDR-WO-005` | **SWR-WO-004** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
-| **CR-WO-006** | `SDR-WO-006` | **SWR-WO-005** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_edit_and_calibration` |
+| **CR-WO-006** | `SDR-WO-006` | **SWR-WO-005** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-KB-001** | `SDR-KB-001` | **SWR-KB-001** | `backend/app/services/timeline_service.py` | `test_work_order_lifecycle_and_timeline` |
 | **CR-KB-002** | `SDR-KB-002` | **SWR-KB-002** | `backend/app/api/v1/endpoints/work_orders.py` | `test_work_order_lifecycle_and_timeline` |
-| **CR-SYS-001** | `SDR-SYS-001` | **SWR-SYS-001** | `backend/app/api/v1/endpoints/system.py` | `test_dashboard_stats` |
-| **CR-SYS-003** | `SDR-SYS-003` | **SWR-SYS-002** | `backend/app/services/backup_service.py` | `test_system_backup` |
-| **CR-SYS-004** | `SDR-SYS-004` | **SWR-SYS-003** | `backend/app/api/v1/endpoints/system.py` | `test_smtp_email_configuration` |
+| **CR-KB-003** | `SDR-KB-003` | **SWR-KB-003** | `backend/app/api/v1/endpoints/knowledge.py` | `test_knowledge_recommend_and_system_backup` |
+| **CR-SYS-001** | `SDR-SYS-001` | **SWR-SYS-001** | `backend/app/api/v1/endpoints/system.py` | `test_system_smtp_and_executive_kpis` |
+| **CR-SYS-003** | `SDR-SYS-003` | **SWR-SYS-002** | `backend/app/services/backup_service.py` | `test_knowledge_recommend_and_system_backup` |
+| **CR-SYS-004** | `SDR-SYS-004` | **SWR-SYS-003** | `backend/app/api/v1/endpoints/system.py` | `test_system_smtp_and_executive_kpis` |
 | **CR-SYS-005** | `SDR-SYS-005` | **SWR-SYS-004** | `backend/app/api/v1/endpoints/docs.py` | `test_docs_reader_api` |
-| **CR-CON-001** | `SDR-DEP-003` | **SWR-DEP-002** | 全后端文件 | `test_pathlib_neutrality` |
+| **CR-CON-001** | `SDR-DEP-003` | **SWR-DEP-002** | 全后端文件 | `test_spa_static_and_api_coexist` |
+| **CR-CON-002** | `SDR-DEP-005` | **SWR-DEP-004** | `deploy/` 双轨脚本目录 | `test_spa_static_and_api_coexist` |
+| **CR-CON-003** | `SDR-DEP-001`, `SDR-DEP-002` | **SWR-DEP-001** | `backend/app/main.py` | `test_spa_static_and_api_coexist` |
 | **CR-CON-004** | `SDR-DEP-001` | **SWR-DEP-001** | `backend/app/main.py` | `test_spa_static_and_api_coexist` |
-| **CR-CON-005** | `SDR-DEP-004` | **SWR-DEP-003** | `deploy/windows/*.bat` | `test_windows_batch_encoding` |
+| **CR-CON-005** | `SDR-DEP-004` | **SWR-DEP-003** | `deploy/windows/*.bat` | `test_spa_static_and_api_coexist` |
+| **CR-CON-006** | `SDR-DEP-006` | **SWR-DEP-004** | `deploy/linux/start_background.sh` 等脚本 | `test_spa_static_and_api_coexist` |

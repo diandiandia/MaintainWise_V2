@@ -7,10 +7,15 @@
           <template #header>
             <div class="tree-header">
               <span>🏭 工厂-部门-系统架构</span>
-              <el-button link type="primary" size="small" @click="fetchHierarchyTree">刷新</el-button>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <el-button v-if="userStore.isEngineer" type="primary" size="small" @click="openCreateHierarchyDialog()">
+                  + 创建层级
+                </el-button>
+                <el-button link type="primary" size="small" @click="fetchHierarchyTree">刷新</el-button>
+              </div>
             </div>
           </template>
-          <div class="tree-tips">点击节点钻取设备，悬停可修改更名</div>
+          <div class="tree-tips">点击钻取设备，➕添加子层级/设备，✏️更名</div>
           <el-tree
             :data="hierarchyTree"
             node-key="name"
@@ -22,8 +27,26 @@
               <div class="tree-node">
                 <span class="node-label">{{ data.label }}</span>
                 <span class="node-actions" v-if="userStore.isEngineer">
-                  <el-button link type="primary" size="small" @click.stop="openRenameDialog(data)">✏️</el-button>
-                  <el-button link type="danger" size="small" @click.stop="openDeleteHierarchy(data)">🗑️</el-button>
+                  <el-button
+                    v-if="data.level === 'factory'"
+                    link type="success" size="small"
+                    title="在当前工厂下新增部门"
+                    @click.stop="openCreateHierarchyDialog('department', data)"
+                  >➕</el-button>
+                  <el-button
+                    v-else-if="data.level === 'department'"
+                    link type="success" size="small"
+                    title="在当前部门下新增系统"
+                    @click.stop="openCreateHierarchyDialog('system_name', data)"
+                  >➕</el-button>
+                  <el-button
+                    v-else-if="data.level === 'system_name'"
+                    link type="success" size="small"
+                    title="为此系统录入设备"
+                    @click.stop="openCreateEquipmentForSystem(data)"
+                  >➕</el-button>
+                  <el-button link type="primary" size="small" title="重命名" @click.stop="openRenameDialog(data)">✏️</el-button>
+                  <el-button link type="danger" size="small" title="删除层级" @click.stop="openDeleteHierarchy(data)">🗑️</el-button>
                 </span>
               </div>
             </template>
@@ -329,6 +352,63 @@
       </template>
     </el-dialog>
 
+    <!-- 用户创建工厂 / 部门 / 系统层级架构模态框 -->
+    <el-dialog v-model="createHierarchyDialogVisible" title="🏛️ 创建工厂 / 部门 / 系统架构" width="560px">
+      <el-alert
+        title="用户自主建树：系统支持您预先规划并建立工厂、部门与系统架构。可在此直接输入新名称，或在现有组织下快速扩展子部门与子系统。"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 18px;"
+      />
+      <el-form :model="hierarchyForm" :rules="hierarchyRules" ref="hierarchyFormRef" label-width="110px">
+        <el-form-item label="所属工厂" prop="factory">
+          <el-select
+            v-model="hierarchyForm.factory"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择已有工厂或手打输入新工厂"
+            style="width: 100%;"
+          >
+            <el-option v-for="f in existingFactories" :key="f" :label="f" :value="f" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="所属部门/车间" prop="department">
+          <el-select
+            v-model="hierarchyForm.department"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择已有部门或手打输入新部门"
+            style="width: 100%;"
+          >
+            <el-option v-for="d in existingDepartments" :key="d" :label="d" :value="d" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="所属系统/工段" prop="system_name">
+          <el-select
+            v-model="hierarchyForm.system_name"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择已有系统或手打输入新系统"
+            style="width: 100%;"
+          >
+            <el-option v-for="s in existingSystems" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="createHierarchyDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="createHierarchyLoading" @click="submitCreateHierarchy">
+          确认创建架构层级
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 层级重命名对话框 -->
     <el-dialog v-model="renameDialogVisible" title="层级多次任意更名 (单事务原子同步)" width="480px">
       <el-form :model="renameForm" label-width="110px">
@@ -513,6 +593,62 @@ const predictedDaysLeft = computed(() => {
   if (avg <= 0) return null
   return Number((rem / avg).toFixed(1))
 })
+
+// 创建工厂/部门/系统层级相关
+const createHierarchyDialogVisible = ref(false)
+const createHierarchyLoading = ref(false)
+const hierarchyFormRef = ref()
+const hierarchyForm = reactive({
+  factory: '',
+  department: '',
+  system_name: ''
+})
+const hierarchyRules = {
+  factory: [{ required: true, message: '请选择或输入工厂名称', trigger: 'blur' }],
+  department: [{ required: true, message: '请选择或输入部门名称', trigger: 'blur' }],
+  system_name: [{ required: true, message: '请选择或输入系统名称', trigger: 'blur' }]
+}
+
+function openCreateHierarchyDialog(level?: string, nodeData?: any) {
+  if (level === 'department' && nodeData) {
+    hierarchyForm.factory = nodeData.name
+    hierarchyForm.department = ''
+    hierarchyForm.system_name = ''
+  } else if (level === 'system_name' && nodeData) {
+    hierarchyForm.factory = nodeData.factory || ''
+    hierarchyForm.department = nodeData.name
+    hierarchyForm.system_name = ''
+  } else {
+    hierarchyForm.factory = ''
+    hierarchyForm.department = ''
+    hierarchyForm.system_name = ''
+  }
+  createHierarchyDialogVisible.value = true
+}
+
+function openCreateEquipmentForSystem(nodeData: any) {
+  createForm.factory = nodeData.factory || ''
+  createForm.department = nodeData.department || ''
+  createForm.system_name = nodeData.system_name || nodeData.name || ''
+  createDialogVisible.value = true
+}
+
+async function submitCreateHierarchy() {
+  if (!hierarchyFormRef.value) return
+  await hierarchyFormRef.value.validate(async (valid: boolean) => {
+    if (!valid) return
+    createHierarchyLoading.value = true
+    try {
+      await apiClient.post('/equipments/hierarchy', hierarchyForm)
+      ElMessage.success(`成功创建架构层级：${hierarchyForm.factory} / ${hierarchyForm.department} / ${hierarchyForm.system_name}`)
+      createHierarchyDialogVisible.value = false
+      await fetchHierarchyTree()
+    } catch (e) {
+    } finally {
+      createHierarchyLoading.value = false
+    }
+  })
+}
 
 // 重命名相关
 const renameDialogVisible = ref(false)

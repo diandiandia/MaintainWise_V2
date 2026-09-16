@@ -38,6 +38,8 @@ data/uploads/qrcodes/*
 *.log
 logs/
 deploy/windows/logs/
+*.pid
+maintainwise.pid
 
 # OS & Editor Specific Files
 .DS_Store

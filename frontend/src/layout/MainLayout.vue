@@ -33,7 +33,7 @@
           <el-icon><Reading /></el-icon>
           <span>后来人知识库</span>
         </el-menu-item>
-        <el-menu-item index="/docs">
+        <el-menu-item index="/system-docs">
           <el-icon><Document /></el-icon>
           <span>设计文档与帮助</span>
         </el-menu-item>
@@ -59,7 +59,7 @@
             {{ roleText }}
           </el-tag>
           <span class="user-name">{{ userStore.user?.full_name }} ({{ userStore.user?.employee_no }})</span>
-          <el-button link type="info" @click="router.push('/docs')" style="margin-left: 12px; font-weight: 500;">
+          <el-button link type="info" @click="router.push('/system-docs')" style="margin-left: 12px; font-weight: 500;">
             <el-icon style="margin-right: 4px;"><Document /></el-icon>帮助文档
           </el-button>
           <el-button link type="primary" @click="openChangePwdDialog" style="margin-left: 10px;">修改密码</el-button>
@@ -87,36 +87,6 @@
         <router-view />
       </el-main>
     </el-container>
-
-    <!-- 首次登录强制改密对话框 (阻断式无叉号不可关闭) -->
-    <el-dialog
-      v-model="mustChangeDialogVisible"
-      title="🔒 首次登录安全强制要求：修改初始密码"
-      width="460px"
-      :show-close="false"
-      :close-on-click-modal="false"
-      :close-on-press-escape="false"
-    >
-      <el-alert
-        title="工业安全规范：系统检测到您使用的是初始密码。为保障车间设备操作权限安全，必须先设置新密码方可进入系统！"
-        type="error"
-        :closable="false"
-        style="margin-bottom: 16px;"
-      />
-      <el-form :model="forcePwdForm" label-width="90px">
-        <el-form-item label="设置新密码" required>
-          <el-input v-model="forcePwdForm.new_password" type="password" placeholder="至少 6 位安全密码" show-password />
-        </el-form-item>
-        <el-form-item label="确认新密码" required>
-          <el-input v-model="forcePwdForm.confirm_password" type="password" placeholder="再次输入新密码" show-password />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button type="primary" :loading="forcePwdLoading" style="width: 100%;" @click="submitForceChangePassword">
-          确认更新密码并进入工作台
-        </el-button>
-      </template>
-    </el-dialog>
 
     <!-- 自主修改密码对话框 -->
     <el-dialog v-model="changePwdDialogVisible" title="个人登录密码修改" width="460px">
@@ -166,39 +136,6 @@ const roleText = computed(() => {
   return '维保技术员'
 })
 
-// 首次登录强制改密
-const mustChangeDialogVisible = computed(() => !!userStore.user?.must_change_password)
-const forcePwdLoading = ref(false)
-const forcePwdForm = reactive({
-  new_password: '',
-  confirm_password: ''
-})
-
-async function submitForceChangePassword() {
-  if (!forcePwdForm.new_password || forcePwdForm.new_password.length < 6) {
-    ElMessage.warning('新密码长度不能少于 6 位')
-    return
-  }
-  if (forcePwdForm.new_password !== forcePwdForm.confirm_password) {
-    ElMessage.warning('两次输入的新密码不一致')
-    return
-  }
-  forcePwdLoading.value = true
-  try {
-    await apiClient.post('/auth/change-password', {
-      new_password: forcePwdForm.new_password
-    })
-    ElMessage.success('密码设置成功！欢迎进入 MaintainWise 2.0')
-    if (userStore.user) {
-      userStore.user.must_change_password = false
-      localStorage.setItem('maintainwise_user', JSON.stringify(userStore.user))
-    }
-  } catch (e) {
-  } finally {
-    forcePwdLoading.value = false
-  }
-}
-
 // 用户主动改密
 const changePwdDialogVisible = ref(false)
 const changePwdLoading = ref(false)
@@ -230,12 +167,9 @@ async function submitChangePassword() {
       old_password: changePwdForm.old_password,
       new_password: changePwdForm.new_password
     })
-    ElMessage.success('密码修改成功，安全期限已更新！')
+    ElMessage.success('密码修改成功！为保障系统安全，请使用新密码重新登录。')
     changePwdDialogVisible.value = false
-    if (userStore.user) {
-      userStore.user.password_expiring_soon = false
-      localStorage.setItem('maintainwise_user', JSON.stringify(userStore.user))
-    }
+    handleLogout()
   } catch (e) {
   } finally {
     changePwdLoading.value = false
