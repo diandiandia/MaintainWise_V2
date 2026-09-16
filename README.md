@@ -125,15 +125,18 @@ MaintainWise_V2/
 ```
 
 ### Windows 环境（统一单入口总控）
-1. 安装 **Python 3.10+**（勾选 `Add python.exe to PATH`）；
-2. 命令行执行常用运维指令：
+1. 安装 **Python 3.10+**（安装时务必勾选 `Add python.exe to PATH`）；
+2. **总控入口**：支持直接**双击 `maintainwise.bat`** 弹出 0~7 交互式菜单，或通过命令行参数调用：
    ```cmd
-   maintainwise.bat deploy    :: 一键完整安装向导
-   maintainwise.bat start     :: 启动 Windows 后台服务
+   maintainwise.bat deploy    :: 一键完整安装与数据库初始化向导
+   maintainwise.bat test      :: 前台交互测试启动 (推荐初次体验，终端直显日志)
+   maintainwise.bat start     :: 启动 Windows 后台自启系统服务
    maintainwise.bat status    :: 查看服务状态与端口监听
    maintainwise.bat restart   :: 重启 Windows 服务
    maintainwise.bat stop      :: 停止 Windows 服务
+   maintainwise.bat backup    :: 一键执行 SQLite WAL 全量热备份
    ```
+   *(注：根目录已配置 `.gitattributes` 锁定 Windows 脚本必须采用 CRLF 换行)*
 3. 打开浏览器访问：`http://127.0.0.1:8000`。
 
 ---

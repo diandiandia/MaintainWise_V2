@@ -28,8 +28,9 @@ MaintainWise 2.0 软件代码库采用前后端分离同构工程结构，物理
 ```
 MaintainWise_V2/
 ├── README.md                        # 项目主说明文档与极速上手指南
+├── .gitattributes                   # 跨平台换行符守护 (强制 *.bat 为 CRLF，*.sh 为 LF)
 ├── maintainwise.sh                  # Linux 根目录：统一命令行总控 (./mw.sh 极简别名)
-├── maintainwise.bat                 # Windows 根目录：统一命令行总控 (mw.bat 极简别名)
+├── maintainwise.bat                 # Windows 根目录：统一命令行与双击菜单总控 (mw.bat 极简别名)
 │
 ├── backend/                         # 后端 Python/FastAPI 异步微核心
 │   ├── app/
@@ -70,6 +71,7 @@ MaintainWise_V2/
 │
 ├── frontend/                        # 前端 Vue 3 + TypeScript 源码
 │   ├── src/
+│   │   ├── vite-env.d.ts            # Vite 客户端与 Vue SFC 模块全局类型垫片
 │   │   ├── api/                     # Axios 封装接口客户端
 │   │   ├── components/              # 业务复用高阶组件 (PhotoUploader 照片上传、EquipmentTimelineDrawer 病历抽屉)
 │   │   ├── layout/                  # 系统主布局框架

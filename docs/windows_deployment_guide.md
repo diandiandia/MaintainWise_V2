@@ -104,26 +104,28 @@ pip --version
 
 ```text
 MaintainWise_V2/
-├── deploy_windows.bat           <-- [根目录一键启动入口] 双击即可调出全自动部署向导
+├── maintainwise.bat                 <-- [根目录统一总控入口] 双击弹出交互式运维菜单，亦支持参数指令
+├── mw.bat                           <-- [根目录极简别名] 快捷批处理入口
+├── .gitattributes                   <-- [跨平台换行符守护] 锁定 *.bat 为 CRLF，杜绝跨平台字符截断错位
 ├── deploy/
-│   └── windows/                 <-- Windows 专用运维脚本套件
-│       ├── 0_deploy_all.bat     <-- 交互式全自动部署向导
-│       ├── 1_init_env.bat       <-- 环境与 Python 依赖安装、数据库初始化
-│       ├── 2_start_foreground.bat <-- 前台交互式测试运行
-│       ├── 3_install_service.bat  <-- 安装为 Windows 后台常驻自启服务
-│       ├── 4_start_service.bat  <-- 启动 Windows 后台服务
-│       ├── 5_stop_service.bat   <-- 停止 Windows 后台服务
-│       ├── 6_uninstall_service.bat<-- 卸载 Windows 后台服务
-│       ├── 7_backup_now.bat     <-- 手动执行在线全量热备份
-│       ├── winsw.xml            <-- Windows 服务守护器参数配置文件
-│       └── README_WINDOWS.txt   <-- Windows 纯文本速查手册
-├── backend/                     <-- FastAPI 业务后端与数据库引擎
-├── frontend/dist/               <-- 编译完成的 Vue 3 高性能静态资源
-├── data/                        <-- 数据存放目录
-│   ├── maintainwise.db          <-- SQLite 主数据库文件（初始化时自动生成）
-│   ├── backups/                 <-- 系统热备份 ZIP 归档库
-│   └── uploads/                 <-- 现场报修照片、二维码存储区
-└── docs/                        <-- 详细设计与部署文档
+│   └── windows/                     <-- Windows 专用运维脚本套件
+│       ├── 0_deploy_all.bat         <-- 交互式全自动部署向导
+│       ├── 1_init_env.bat           <-- 环境与 Python 依赖安装、数据库初始化
+│       ├── 2_start_foreground.bat   <-- 前台交互式测试运行
+│       ├── 3_install_service.bat    <-- 安装为 Windows 后台常驻自启服务
+│       ├── 4_start_service.bat      <-- 启动 Windows 后台服务
+│       ├── 5_stop_service.bat       <-- 停止 Windows 后台服务
+│       ├── 6_uninstall_service.bat  <-- 卸载 Windows 后台服务
+│       ├── 7_backup_now.bat         <-- 手动执行在线全量热备份
+│       ├── winsw.xml                <-- Windows 服务守护器参数配置文件
+│       └── README_WINDOWS.txt       <-- Windows 纯文本速查手册
+├── backend/                         <-- FastAPI 业务后端与数据库引擎
+├── frontend/dist/                   <-- 编译完成的 Vue 3 高性能静态资源
+├── data/                            <-- 数据存放目录
+│   ├── maintainwise.db              <-- SQLite 主数据库文件（初始化时自动生成）
+│   ├── backups/                     <-- 系统热备份 ZIP 归档库
+│   └── uploads/                     <-- 现场报修照片、二维码存储区
+└── docs/                            <-- 详细设计与部署文档
 ```
 
 ---
@@ -134,24 +136,28 @@ MaintainWise_V2/
 
 ### 操作步骤：
 1. 打开 `MaintainWise_V2` 根目录。
-2. 双击运行 **`deploy_windows.bat`**。
-3. 系统将自动调出部署向导并依序执行：
+2. **直接双击运行 `maintainwise.bat`**（或在命令行输入 `maintainwise.bat deploy` 或 `.\mw.bat`）。
+3. 界面将弹出友好总控菜单：
+   ```text
+   =======================================================================
+          MaintainWise 2.0 - Windows 命令行与交互总控入口
+   =======================================================================
+   可选指令 (Commands):
+     [1] deploy   一键全自动依赖安装与环境初始化向导
+     [2] test     前台交互测试启动 (推荐初次运行/实时查看日志)
+     [3] start    启动 Windows 后台自启系统服务 (net start)
+     [4] stop     停止 Windows 后台系统服务 (net stop)
+     [5] restart  重启 Windows 后台系统服务
+     [6] status   查看 Windows 服务运行状态与端口监听
+     [7] backup   立即执行一次 SQLite WAL 全量热备份
+     [0] exit     退出
+   =======================================================================
+   ```
+4. 输入 `1` 并回车，向导将全自动依序执行：
    * **检测 Python**：校验系统当前 Python 与 pip 是否就绪；
    * **依赖安装**：自动使用清华大学国内 PyPI 镜像源下载安装 FastAPI、Uvicorn、Pillow、QRcode 等所需库；
    * **数据库初始化**：自动创建 SQLite 数据库、初始化用户表、设备表、预设 SOP 巡检标准及初始账号；
-4. 部署向导界面会弹出启动选项菜单：
-   ```text
-   -----------------------------------------------------------------------
-   Select Startup Mode / 请选择启动方式：
-     [1] Start Interactive Foreground Test (Recommended for first run)
-         立即前台交互测试启动 (端口 8000)
-     [2] Install & Start Background Service (Production, Admin required)
-         安装并启动为 Windows 后台自启服务
-     [3] Exit now (Environment is ready)
-         仅完成环境初始化，稍后自行启动
-   -----------------------------------------------------------------------
-   ```
-5. 输入数字 `1` 即可直接在前台启动系统；在浏览器输入 `http://127.0.0.1:8000` 即可登录并使用！
+5. 部署完成后，在菜单输入 `2`（或执行 `maintainwise.bat test`），即可在前台启动服务；在浏览器输入 `http://127.0.0.1:8000` 即可登录并使用！
 
 ---
 
@@ -360,7 +366,7 @@ pip download -r requirements.txt -d .\wheels_cache -i https://pypi.tuna.tsinghua
 cd MaintainWise_V2\backend
 pip install --no-index --find-links=.\wheels_cache -r requirements.txt
 ```
-安装完成后，直接双击 `deploy_windows.bat` 或 `3_install_service.bat` 即可离线完成安装。
+安装完成后，直接双击 `maintainwise.bat`（选 `1` 部署）或 `3_install_service.bat` 即可离线完成安装。
 
 ---
 
@@ -391,6 +397,16 @@ pip install --no-index --find-links=.\wheels_cache -r requirements.txt
 ### Q5：如何确认 Windows 后台守护服务的运行状况？
 * 打开 `deploy\windows\logs\` 目录，查阅 `MaintainWiseService.out.log`（标准运行日志）与 `MaintainWiseService.err.log`（错误日志）；
 * 若日志显示 `Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)`，即代表服务运行完全正常。
+
+### Q6：在 Windows 终端运行批处理时，提示 `'l' is not recognized`、`'cho'`、`The service name is invalid` 字符错位或命令跳穿？
+* **原因**：跨平台（如通过 Mac/Linux 共享目录、虚拟机挂载或未配置换行符的 Git 拷贝）检出批处理文件时，文件换行符变成了 Unix 风格的 `\n` (LF)。Windows 的 `cmd.exe` 在解析 `goto` 跳转与按行执行时强依赖 `\r\n` (CRLF，2 字节)，单字节 LF 会导致 `cmd.exe` 指针逐行向前累计错位 1~2 个字节，从而截断命令（如 `call` 变 `'l'`、`echo` 变 `'cho'`、`pause` 变 `'se'`）并意外跳穿至 `start` / `stop` 标签。
+* **解决办法**：
+  1. **Git 官方防护**：项目根目录已内置 `.gitattributes`，声明 `*.bat text eol=crlf`。只要通过 Git 拉取代码，Git 会自动保障批处理文件采用 CRLF；
+  2. **终端一键自修复**：若从共享文件夹直接拷贝，可在 Windows PowerShell 窗口中直接执行以下一行修复指令：
+     ```powershell
+     Get-ChildItem -Path . -Filter *.bat -Recurse | ForEach-Object { (Get-Content $_.FullName -Raw) -replace "(?<!`r)`n", "`r`n" | Set-Content $_.FullName -NoNewline }
+     ```
+  3. 修复换行符后，运行 `.\maintainwise.bat deploy` 即可顺利初始化。
 
 ---
 

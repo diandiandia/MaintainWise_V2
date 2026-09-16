@@ -361,10 +361,14 @@
 * **规范**：禁止硬编码 `/` 或 `\`，统一采用 `pathlib.Path` 拼接路径。
 * **测试用例**：`test_pathlib_neutrality()`
 
-### SWR-DEP-003：Windows 批处理 CRLF 与 UTF-8 编码基线
+### SWR-DEP-003：Windows 批处理 CRLF、.gitattributes 防护与双模控制总控
 * **上游追溯**：`SDR-DEP-004`, `CR-CON-005`
-* **实现定位**：`deploy/windows/*.bat` 及根目录 `maintainwise.bat`
-* **规范**：文件统一保存为标准 CRLF 换行，首行声明 `chcp 65001 >nul`。
+* **实现定位**：`deploy/windows/*.bat`, 根目录 `maintainwise.bat`, `mw.bat`, `.gitattributes`
+* **规范**：
+  - 文件统一保存为标准 CRLF 换行，首行声明 `chcp 65001 >nul`；
+  - 根目录 `.gitattributes` 明确声明 `*.bat text eol=crlf`，防止跨平台拉取时被转为单字节 LF 造成指令截断；
+  - `maintainwise.bat` 支持参数模式（`deploy|test|start|stop|restart|status|backup`）与双击 0~7 交互式菜单；
+  - 原生支持 `test` 命令调用 `deploy/windows/2_start_foreground.bat` 进行前台交互调试。
 * **测试用例**：`test_spa_static_and_api_coexist()`
 
 ### SWR-DEP-004：Linux 容器环境进程脱离常驻与统一命令行控制套件

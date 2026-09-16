@@ -565,11 +565,12 @@
 * **对应客户需求**：`CR-CON-005`
 * **所属系统层级**：部署脚本工程规范
 * **设计实现规范**：
-  `deploy/windows/*.bat` 及根目录 `一键部署_Windows.bat`：
+  `deploy/windows/*.bat` 及根目录 `maintainwise.bat`、`mw.bat`：
   - 文本换行符强制锁定为 `CRLF (\r\n)`；
+  - 根目录配置 `.gitattributes`，声明 `*.bat text eol=crlf`，永久免疫跨操作系统拉取或虚拟机挂载导致的 LF 错位；
   - 脚本第一行统一声明：`@echo off` 与 `chcp 65001 >nul`；
-  - 杜绝 Windows 命令提示符执行时出现乱码或因 LF 导致的解析异常。
-* **验证方式**：在中文版 Windows CMD 中执行，汉字清晰且命令正常流转。
+  - 杜绝 Windows 命令提示符执行时出现乱码或因 LF 导致的 `cmd.exe` 指针偏移命令截断与跳转穿透。
+* **验证方式**：在中文版 Windows CMD / PowerShell 中执行，汉字清晰且命令正常流转。
 
 ### SDR-DEP-005：Linux Shell 与 Windows Batch 0~7 双轨同构脚本设计
 * **对应客户需求**：`CR-CON-002`
@@ -577,6 +578,7 @@
 * **设计实现规范**：
   同时维护功能完全对等的双轨运维体系：
   - 根目录顶级入口：`maintainwise.sh` 与 `maintainwise.bat`，以及简写别名 `mw.sh` 与 `mw.bat`；
+  - `maintainwise.bat` 提供参数化与鼠标双击 0~7 交互式菜单双模支持，新增 `test` 前台交互测试启动指令；
   - `deploy/linux/`: `0_deploy_all.sh`, `1_init_env.sh`, `2_start_foreground.sh`, `start_background.sh`, `stop_background.sh`, `status.sh`, `restart_background.sh`, `3_install_service.sh`, `4_start_service.sh`, `5_stop_service.sh`, `6_uninstall_service.sh`, `7_backup_now.sh`, `README_LINUX.txt`；
   - `deploy/windows/`: `0_deploy_all.bat`, `1_init_env.bat`, `2_start_foreground.bat`, `3_install_service.bat`, `4_start_service.bat`, `5_stop_service.bat`, `6_uninstall_service.bat`, `7_backup_now.bat`, `winsw.xml`, `README_WINDOWS.txt`。
 * **验证方式**：分别在 Linux 与 Windows 环境执行双轨各编号脚本，服务均正常管理。

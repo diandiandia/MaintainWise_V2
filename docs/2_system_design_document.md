@@ -599,15 +599,16 @@ flowchart TD
   2. **零 C/C++ 本地编译依赖**：Python 依赖选用纯 Python 或官方预编译 Wheel，彻底避免在 Windows 上安装时报 Visual C++ 缺失错误；
   3. **单文件 SQLite 3 WAL 架构**：零配置、零外部数据库服务安装，单文件拷贝即完整迁移；
   4. **路径中立性**：Python 代码全面使用 `pathlib.Path`，杜绝 Linux `/` 与 Windows `\` 路径分隔符差异；
-  5. **Windows 批处理防乱码**：所有 Windows `.bat` 脚本强制采用 **CRLF 换行**，首行声明 **`chcp 65001 >nul` (UTF-8)**，确保中文显示完全正常；
+  5. **Windows 批处理防乱码与 CRLF 换行符保护**：所有 Windows `.bat` 脚本强制采用 **CRLF 换行**，首行声明 **`chcp 65001 >nul` (UTF-8)**，并通过根目录 [`.gitattributes`](file:///root/MaintainWise_V2/.gitattributes) 强制锁定 `*.bat text eol=crlf`，从根源杜绝跨平台检出或共享目录挂载时因 LF 导致的 `cmd.exe` 指针偏移命令截断与穿透；
   6. **Linux 后台持久守护 (setsid + 会话脱离)**：针对轻量容器或非 systemd 宿主，系统启动采用 `setsid` 独立会话与标准输入脱离机制，SIGHUP 免疫，用户关闭终端或断开 SSH 后台服务 100% 持续稳定运行；
-  7. **统一命令行总控架构 (Unified CLI)**：根目录收敛为唯一的统一总控脚本 `maintainwise.sh` (Linux) 与 `maintainwise.bat` (Windows)，支持 `deploy/start/stop/restart/status/logs/backup` 参数化指令，彻底根除根目录散乱脚本。
+  7. **统一命令行总控架构 (Unified CLI)**：根目录收敛为统一总控脚本 `maintainwise.sh` (Linux) 与 `maintainwise.bat` (Windows)。Linux 支持 `deploy/start/stop/restart/status/logs/backup` 参数化指令；Windows 额外支持直接鼠标双击弹出 0~7 交互式菜单与 `test` 前台交互测试启动，彻底根除根目录散乱脚本。
 
 ### 9.2 双轨部署脚本目录树
 ```
 MaintainWise_V2/
+├── .gitattributes                   # 根目录跨平台换行符守护 (强制 *.bat 为 CRLF，*.sh 为 LF)
 ├── maintainwise.sh                  # 根目录 Linux 统一总控入口 (./mw.sh 极简别名)
-├── maintainwise.bat                 # 根目录 Windows 统一总控入口 (mw.bat 极简别名)
+├── maintainwise.bat                 # 根目录 Windows 统一总控入口 (mw.bat 极简别名，双模交互)
 │
 ├── deploy/                          # 统一双轨部署工具总目录
 │   ├── linux/                       # Linux 专用一键运维脚本工具箱
