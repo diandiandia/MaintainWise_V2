@@ -624,14 +624,14 @@ MaintainWise_V2/
 │   │   └── README_LINUX.txt         # Linux 简明部署说明书
 │   │
 │   └── windows/                     # Windows Server 专用批处理工具箱 (全部 CRLF + UTF-8)
-│       ├── 0_一键完整部署(Windows).bat # 全自动综合部署向导
-│       ├── 1_一键环境初始化.bat     # 校验 Python、pip 装包、初始化数据库
-│       ├── 2_前台测试启动.bat       # 单端口 8000 前台控制台启动
-│       ├── 3_安装Windows服务.bat    # WinSW 包装注册 Windows 后台自启服务
-│       ├── 4_启动服务.bat           # 启动 Windows 后台服务 (net start)
-│       ├── 5_停止服务.bat           # 停止 Windows 后台服务 (net stop)
-│       ├── 6_卸载Windows服务.bat    # 卸载 Windows 服务
-│       ├── 7_立即执行备份.bat       # 一键打包生成热备 ZIP 归档包
+│       ├── 0_deploy_all.bat         # 全自动综合部署向导
+│       ├── 1_init_env.bat           # 校验 Python、pip 装包、初始化数据库
+│       ├── 2_start_foreground.bat   # 单端口 8000 前台控制台启动
+│       ├── 3_install_service.bat    # WinSW 包装注册 Windows 后台自启服务
+│       ├── 4_start_service.bat      # 启动 Windows 后台服务 (net start)
+│       ├── 5_stop_service.bat       # 停止 Windows 后台服务 (net stop)
+│       ├── 6_uninstall_service.bat  # 卸载 Windows 服务
+│       ├── 7_backup_now.bat         # 一键打包生成热备 ZIP 归档包
 │       ├── winsw.xml                # WinSW 服务包装核心配置文件
 │       └── README_WINDOWS.txt       # Windows Server 现场交付说明书
 ```

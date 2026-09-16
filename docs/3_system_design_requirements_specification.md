@@ -543,9 +543,9 @@
 * **所属系统层级**：运维工具包工程
 * **设计实现规范**：
   同时维护功能完全对等的双轨运维体系：
-  - 根目录顶级入口：`一键部署_Linux.sh` 与 `一键部署_Windows.bat`；
-  - `deploy/linux/`: `0_一键完整部署(Linux).sh`, `1_一键环境初始化.sh`, `2_前台测试启动.sh`, `3_安装Systemd服务.sh`, `4_启动服务.sh`, `5_停止服务.sh`, `6_卸载Systemd服务.sh`, `7_立即执行备份.sh`；
-  - `deploy/windows/`: `0_一键完整部署(Windows).bat`, `1_一键环境初始化.bat`, `2_前台测试启动.bat`, `3_安装Windows服务.bat`, `4_启动服务.bat`, `5_停止服务.bat`, `6_卸载Windows服务.bat`, `7_立即执行备份.bat`, `winsw.xml`。
+  - 根目录顶级入口：`deploy_linux.sh` 与 `deploy_windows.bat`，以及根目录快捷运维脚本 (`./start.sh`, `./stop.sh`, `./status.sh`, `./restart.sh`)；
+  - `deploy/linux/`: `0_deploy_all.sh`, `1_init_env.sh`, `2_start_foreground.sh`, `start_background.sh`, `stop_background.sh`, `status.sh`, `restart_background.sh`, `3_install_service.sh`, `4_start_service.sh`, `5_stop_service.sh`, `6_uninstall_service.sh`, `7_backup_now.sh`, `README_LINUX.txt`；
+  - `deploy/windows/`: `0_deploy_all.bat`, `1_init_env.bat`, `2_start_foreground.bat`, `3_install_service.bat`, `4_start_service.bat`, `5_stop_service.bat`, `6_uninstall_service.bat`, `7_backup_now.bat`, `winsw.xml`, `README_WINDOWS.txt`。
 * **验证方式**：分别在 Linux 与 Windows 环境执行双轨各编号脚本，服务均正常管理。
 
 ### SDR-DEP-006：Linux 进程级后台常驻守护与脱离控制终端运行设计

@@ -27,17 +27,26 @@ MaintainWise 2.0 软件代码库采用前后端分离同构工程结构，物理
 
 ```
 MaintainWise_V2/
+├── README.md                        # 项目主说明文档与极速上手指南
+├── start.sh                         # Linux 根目录后台常驻守护启动快捷脚本
+├── stop.sh                          # Linux 根目录后台停止快捷脚本
+├── status.sh                        # Linux 根目录后台状态诊断快捷脚本
+├── restart.sh                       # Linux 根目录后台平滑重启快捷脚本
+├── deploy_linux.sh                  # Linux 根目录全自动部署向导入口
+├── deploy_windows.bat               # Windows 根目录全自动部署向导入口 (UTF-8/CRLF)
+│
 ├── backend/                         # 后端 Python/FastAPI 异步微核心
 │   ├── app/
 │   │   ├── api/v1/                  # RESTful API 端点控制器
 │   │   │   ├── endpoints/
 │   │   │   │   ├── auth.py          # 登录认证与 Token 颁发
 │   │   │   │   ├── users.py         # 用户增删改查与密码重置
-│   │   │   │   ├── equipments.py    # 设备台账、层级更名、工时抄表
+│   │   │   │   ├── equipments.py    # 设备台账、三级架构自主创建、工时抄表
 │   │   │   │   ├── maintenance.py   # 维保计划、技术员打卡与锁定、工程师修正
-│   │   │   │   ├── work_orders.py   # 30秒报修、四态看板流转、复盘结案
+│   │   │   │   ├── work_orders.py   # 30秒极速报修、四态看板流转、复盘结案
 │   │   │   │   ├── knowledge.py     # 知识库案例检索、录入与智能推荐
-│   │   │   │   └── system.py        # 大盘统计、定制参数与一键热备份
+│   │   │   │   ├── system.py        # 大盘统计、定制参数与一键热备份
+│   │   │   │   └── docs.py          # 系统设计规范在线读取服务
 │   │   │   └── router.py            # API 总路由分发
 │   │   ├── core/                    # 核心切面与安全配置
 │   │   │   ├── config.py            # Pydantic Settings 环境配置
@@ -45,7 +54,7 @@ MaintainWise_V2/
 │   │   │   └── deps.py              # 数据库连接与三角色 RBAC 依赖注入
 │   │   ├── db/                      # 数据持久化底层
 │   │   │   ├── session.py           # SQLite 连接上下文与 WAL 模式注入
-│   │   │   └── init_db.py           # 表结构自动初始化与演示数据种子
+│   │   │   └── init_db.py           # 表结构自动初始化与演示数据种子 (含 custom_hierarchies)
 │   │   ├── schemas/                 # Pydantic 请求/响应数据校验模式
 │   │   │   ├── user.py              # 用户模型
 │   │   │   ├── equipment.py         # 设备与工时模型
@@ -60,36 +69,70 @@ MaintainWise_V2/
 │   │   │   └── backup_service.py    # SQLite WAL 纯内存 ZIP 热备份服务
 │   │   └── main.py                  # FastAPI 单端口总宿主与 SPA 挂载
 │   ├── tests/                       # 自动化测试用例套件
-│   │   └── test_backend_api.py      # 端到端 API 集成自动化测试 (Pytest)
+│   │   └── test_backend_api.py      # 端到端 API 集成自动化测试 (13项 Pytest 用例)
 │   └── requirements.txt             # 生产端纯 Wheel 依赖清单
 │
 ├── frontend/                        # 前端 Vue 3 + TypeScript 源码
 │   ├── src/
 │   │   ├── api/                     # Axios 封装接口客户端
-│   │   ├── components/              # 业务复用高阶组件
-│   │   │   ├── EquipmentTimelineDrawer.vue  # 终身维修病历抽屉
-│   │   │   ├── HierarchyTree.vue            # 工厂部门系统层级树
-│   │   │   └── RecommendationCard.vue       # 报修排故推荐卡片
+│   │   ├── components/              # 业务复用高阶组件 (病历抽屉等)
+│   │   ├── layout/                  # 系统主布局框架
 │   │   ├── router/                  # Vue Router 路由守卫与动态菜单
 │   │   ├── stores/                  # Pinia 响应式状态管理 (user, app)
 │   │   └── views/                   # 业务功能视图页面
 │   │       ├── login/               # 登录视图
 │   │       ├── auth/                # 首次登录强制改密独立安全视图 (ForceChangePasswordView)
 │   │       ├── dashboard/           # 车间工作台大盘 (数据平台)
-│   │       ├── equipments/          # 设备资产与层级管理视图
+│   │       ├── equipments/          # 设备资产与多级架构管理视图
 │   │       ├── maintenance/         # 维保打卡与保养计划视图
 │   │       ├── workorders/          # 四态工单流转看板视图
 │   │       ├── knowledge/           # 后来人排故知识库视图
 │   │       ├── users/               # 人员管理视图 (管理员专属)
-│   │       └── settings/            # 系统设置与热备份视图
+│   │       ├── settings/            # 系统设置与热备份视图
+│   │       └── docs/                # 系统在线设计文档与帮助中心 (DocsReaderView)
 │   └── dist/                        # 预编译静态前端产物 (直接供 FastAPI 静态托管)
+│
+├── deploy/                          # 双轨一键部署脚本工具箱 (Linux + Windows)
+│   ├── linux/                       # Linux 脚本与 setsid 守护套件
+│   │   ├── 0_deploy_all.sh          # 综合部署向导 (默认启动后台常驻守护)
+│   │   ├── 1_init_env.sh            # 虚拟环境初始化
+│   │   ├── 2_start_foreground.sh    # 前台交互测试启动
+│   │   ├── start_background.sh      # setsid 后台守护启动 (退出终端不中断)
+│   │   ├── stop_background.sh       # 平滑停止后台服务与清理 PID
+│   │   ├── status.sh                # 状态诊断与实时日志探针
+│   │   ├── restart_background.sh    # 守护重启脚本
+│   │   ├── 3_install_service.sh     # 注册 Systemd 服务
+│   │   ├── 4_start_service.sh       # 启动 Systemd 服务
+│   │   ├── 5_stop_service.sh        # 停止 Systemd 服务
+│   │   ├── 6_uninstall_service.sh   # 卸载 Systemd 服务
+│   │   ├── 7_backup_now.sh          # 立即执行一次热备份
+│   │   └── README_LINUX.txt         # Linux 简明部署说明书
+│   └── windows/                     # Windows 批处理工具箱 (全部 CRLF + UTF-8)
+│       ├── 0_deploy_all.bat         # Windows 全自动向导
+│       ├── 1_init_env.bat           # 依赖与数据库初始化
+│       ├── 2_start_foreground.bat   # 前台测试启动
+│       ├── 3_install_service.bat    # 注册为 Windows 独立服务 (WinSW)
+│       ├── 4_start_service.bat      # 启动 Windows 服务
+│       ├── 5_stop_service.bat       # 停止 Windows 服务
+│       ├── 6_uninstall_service.bat  # 卸载 Windows 服务
+│       ├── 7_backup_now.bat         # 立即备份
+│       ├── winsw.xml                # WinSW 服务定义配置
+│       └── README_WINDOWS.txt       # Windows 部署说明
+│
+├── docs/                            # 7 份全生命周期技术规格与实操指南
+│   ├── 1_customer_requirements_specification.md
+│   ├── 2_system_design_document.md
+│   ├── 3_system_design_requirements_specification.md
+│   ├── 4_software_design_document.md
+│   ├── 5_software_design_requirements_specification.md
+│   ├── intermittent_equipment_operations_guide.md
+│   └── windows_deployment_guide.md
 │
 ├── data/                            # 单机持久化存储目录
 │   ├── maintainwise.db              # SQLite 3 WAL 单文件数据库
 │   ├── uploads/                     # 多媒体静态资源 (二维码/照片/图纸)
 │   └── backups/                     # 一键热备份生成的历史 ZIP 归档目录
-│
-└── deploy/                          # 双轨一键部署脚本工具箱 (Linux + Windows)
+└── logs/                            # 运行时日志目录 (maintainwise.log)
 ```
 
 ### 1.2 单端口统一宿主设计
