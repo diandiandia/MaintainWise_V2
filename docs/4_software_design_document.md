@@ -345,7 +345,10 @@ CREATE INDEX IF NOT EXISTS idx_custom_hierarchies ON custom_hierarchies(factory,
   直接基于底层 `bcrypt` 模块实现无版本隐患的单向加盐散列与密码匹配：
   ```python
   import bcrypt
-  from jose import jwt
+  try:
+      import jwt
+  except ImportError:
+      from jose import jwt
 
 
   def hash_password(password: str) -> str:

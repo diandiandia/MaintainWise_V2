@@ -162,7 +162,7 @@ fastapi>=0.100.0
 uvicorn>=0.23.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
-python-jose[cryptography]>=3.3.0
+pyjwt>=2.8.0
 bcrypt>=4.0.0
 python-multipart>=0.0.6
 aiofiles>=23.0.0
@@ -180,7 +180,7 @@ ${PIP_EXEC} install -r "${BACKEND_DIR}/requirements.txt" ${PIP_FLAGS} -i https:/
 ${PIP_EXEC} install -r "${BACKEND_DIR}/requirements.txt" --break-system-packages --user
 
 echo "  -> Validating backend core modules..."
-${PYTHON_EXEC} -c "import fastapi, uvicorn, pydantic, bcrypt, jose, qrcode, PIL; print('  [OK] Core modules validated successfully.')"
+${PYTHON_EXEC} -c "import fastapi, uvicorn, pydantic, bcrypt, jwt, qrcode, PIL; print('  [OK] Core modules validated successfully.')"
 
 # 6. [STEP 4/4] Initialize SQLite 3 WAL Database & Demo Data
 echo ""

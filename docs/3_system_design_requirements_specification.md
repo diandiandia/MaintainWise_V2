@@ -550,7 +550,7 @@
 * **所属系统层级**：依赖管理规范
 * **设计实现规范**：
   `requirements.txt` 中严格挑选支持 Windows 官方 Wheel 轮子的成熟纯 Python 库：
-  `fastapi`, `uvicorn`, `pydantic`, `pydantic-settings`, `python-jose`, `bcrypt`, `python-multipart`, `aiofiles`, `qrcode`, `pillow`；
+  `fastapi`, `uvicorn`, `pydantic`, `pydantic-settings`, `pyjwt`, `bcrypt`, `python-multipart`, `aiofiles`, `qrcode`, `pillow`；
   杜绝任何需本地调用 MSVC/gcc 编译器的未知第三方扩展。
 * **验证方式**：在无 Visual Studio 编译环境的 Windows 机器上 `pip install` 顺利安装。
 
